@@ -33,6 +33,8 @@
 #include "runtime/peer_transport.h"
 #include "runtime/privacy_session_policy.h"
 #include "runtime/trusted_devices.h"
+#include "runtime/user_account.h"
+#include "runtime/user_signal_bridge.h"
 #ifdef __APPLE__
 #include "platform/macos/gui/runtime/mac_permission_migration.h"
 #endif
@@ -121,6 +123,10 @@ class GuiRuntime : protected gui_detail::GuiState {
   void HandleScreenLock();
   bool IsAuthorizedController(const std::string& remote_id);
   void InitializeTrustedDevices(const std::filesystem::path& directory);
+  // [USER-ACCOUNT] employee account login and device groups.
+  void InitializeUserAccount();
+  void BroadcastUserAccountState();
+  void RefreshUserDeviceGroups();
   bool PublishSharedIdentity(bool include_config = false);
   bool PrepareSharedGuiIdentity(bool import_existing);
   bool TrustedControllerAllowed(const std::string& remote_id);
@@ -135,6 +141,9 @@ class GuiRuntime : protected gui_detail::GuiState {
   bool RemoveTrustedDevice(const std::string& public_key);
   int SendTrustMessage(const std::string& remote_id, const nlohmann::json& message);
   std::unique_ptr<TrustedDevices> trusted_devices_;
+  // [USER-ACCOUNT] null until InitializeUserAccount runs.
+  std::shared_ptr<UserAccount> user_account_;
+  std::unique_ptr<UserSignalBridge> user_bridge_;
   struct ControllerTrust {
     PeerEventHandler* events = nullptr;
     std::string nonce;

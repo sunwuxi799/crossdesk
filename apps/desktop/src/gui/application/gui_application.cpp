@@ -37,6 +37,7 @@
 #include <vector>
 
 #include "crossdesk_ui.h"
+#include "runtime/user_account.h"
 #include "fa_solid_900.h"
 #include "features/about/about_catalog.h"
 #include "features/feedback/diagnostic_export.h"
@@ -1270,6 +1271,7 @@ int GuiApplication::Run() {
   InitializeTrustedDevices(path_manager_->GetConfigPath() / "trusted-devices");
   // [USER-ACCOUNT] employee account state machine
   InitializeUserAccount();
+  SetUserAccountUiHook([this]() { SyncUserAccountToUi(); });
 #ifdef __APPLE__
   StartMacPermissionMigration(false);
 #endif
@@ -1759,35 +1761,66 @@ void GuiApplication::ResetSettingsUi(bool gallery_window) {
   main->set_gallery_settings_error("");
 }
 
+// [USER-ACCOUNT] Mirror the account state machine into both Slint windows.
+void GuiApplication::SyncUserAccountToUi() {
+  const auto account = user_account();
+  if (!account || !ui_) return;
+
+  std::vector<ui::UserDeviceEntry> items;
+  for (const auto& d : UserDevices()) {
+    ui::UserDeviceEntry entry{};
+    entry.device_id = slint::SharedString(d.device_id);
+    entry.alias = slint::SharedString(d.alias);
+    entry.online = d.online;
+    items.push_back(std::move(entry));
+  }
+
+  auto model = std::make_shared<slint::VectorModel<ui::UserDeviceEntry>>(items);
+  const bool signed_in = account->IsSignedIn();
+  const bool signing_in = account->State() == UserLoginState::SigningIn;
+  const std::string display =
+      account->DisplayName().empty() ? account->Username() : account->DisplayName();
+  const std::string error = account->LastError();
+
+  const auto apply = [&](auto* window) {
+    if (!window) return;
+    window->set_user_signed_in(signed_in);
+    window->set_user_signing_in(signing_in);
+    window->set_user_devices(model);
+    window->set_user_display_name(slint::SharedString(display));
+    window->set_user_error_text(slint::SharedString(error));
+  };
+  apply(ui_->Window(false).operator->());
+  apply(ui_->Window(true).operator->());
+}
+
 void GuiApplication::BindMainCallbacks(bool gallery_window) {
   auto* main = ui_->Window(gallery_window).operator->();
 
   // [USER-ACCOUNT] Bind the account panel callbacks.
-  if (ui_ && ui_->main) {
-    auto* main = ui_->main;
-    main->on_user_sign_in([this, main]() {
-      if (!user_account_ || !user_bridge_) return;
-      const std::string user(main->get_user_input_username().data(),
-                             main->get_user_input_username().size());
-      const std::string password(main->get_user_input_password().data(),
-                                 main->get_user_input_password().size());
-      main->set_user_input_password(slint::SharedString(""));
-      user_bridge_->RequestSignIn(user, password);
-      BroadcastUserAccountState();
-    });
-    main->on_user_sign_out([this]() {
-      if (!user_account_) return;
-      user_account_->SignOut();
-      BroadcastUserAccountState();
-    });
-    main->on_user_refresh_devices([this]() { RefreshUserDeviceGroups(); });
-    main->on_user_connect_device([this](const slint::SharedString& id) {
-      if (!user_account_) return;
-      const std::string device(id.data(), id.size());
-      if (!user_account_->CanAccess(device)) return;
-      ConnectTo(device, nullptr, false, true, false);
-    });
-  }
+  // `main` is already the raw MainWindow* for this window.
+  main->on_user_sign_in([this, main]() {
+    if (!user_account_ || !user_bridge_) return;
+    const auto user_text = main->get_user_input_username();
+    const auto password_text = main->get_user_input_password();
+    const std::string user(user_text.data(), user_text.size());
+    const std::string password(password_text.data(), password_text.size());
+    main->set_user_input_password(slint::SharedString(""));
+    user_bridge_->RequestSignIn(user, password);
+    SyncUserAccountToUi();
+  });
+  main->on_user_sign_out([this]() {
+    if (!user_account_) return;
+    user_account_->SignOut();
+    SyncUserAccountToUi();
+  });
+  main->on_user_refresh_devices([this]() { RefreshUserDeviceGroups(); });
+  main->on_user_connect_device([this](slint::SharedString id) {
+    if (!user_account_) return;
+    const std::string device(id.data(), id.size());
+    if (!user_account_->CanAccess(device)) return;
+    ConnectTo(device, nullptr, false, true, false);
+  });
 
   main->on_gallery_pointer([this](slint::PointerEventButton button,
                                  slint::PointerEventKind kind, float x,

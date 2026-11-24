@@ -14,6 +14,7 @@
 #include <future>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "desktop_automation.h"
 #include "features/clipboard/clipboard_controller.h"
@@ -124,9 +125,21 @@ class GuiRuntime : protected gui_detail::GuiState {
   bool IsAuthorizedController(const std::string& remote_id);
   void InitializeTrustedDevices(const std::filesystem::path& directory);
   // [USER-ACCOUNT] employee account login and device groups.
+  // The state machine lives here; the Slint windows belong to GuiApplication,
+  // so UI updates are delegated through user_account_ui_hook_.
+  struct UserDeviceSnapshot {
+    std::string device_id;
+    std::string alias;
+    bool online = false;
+  };
   void InitializeUserAccount();
-  void BroadcastUserAccountState();
   void RefreshUserDeviceGroups();
+  std::vector<UserDeviceSnapshot> UserDevices() const;
+  void SetUserAccountUiHook(std::function<void()> hook) {
+    user_account_ui_hook_ = std::move(hook);
+  }
+  std::shared_ptr<UserAccount> user_account() const { return user_account_; }
+  UserSignalBridge* user_bridge() const { return user_bridge_.get(); }
   bool PublishSharedIdentity(bool include_config = false);
   bool PrepareSharedGuiIdentity(bool import_existing);
   bool TrustedControllerAllowed(const std::string& remote_id);

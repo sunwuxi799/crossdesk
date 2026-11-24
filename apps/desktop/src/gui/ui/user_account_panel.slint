@@ -1,6 +1,13 @@
-﻿// CrossDesk - 鍛樺伐璐﹀彿鐧诲綍涓庤澶囧垎缁勫垪琛?//
-// 涓ユ牸閬靛惊椤圭洰鏃㈡湁 Slint 绾﹀畾锛?//   - 鐢?ui_surface.slint 鐨?FlatSurface / UiSurface 鍋氬崱鐗囦笌鎻忚竟
-//   - 鐢?workbench_controls.slint 鐨?WorkbenchStyle 鍋氭枃瀛楅厤鑹?//   - 鐢?settings_controls.slint 鐨?SettingsButton 鍋氭寜閽?//   - 鏂囨闆嗕腑鍦?UserAccountStrings global锛岀敱 C++ 渚ф敞鍏ュ璇█
+// CrossDesk - user account login and device group list
+//
+// Follows the project's existing Slint conventions:
+//   - FlatSurface / UiSurface from ui_surface.slint for cards and outlines
+//   - WorkbenchStyle from workbench_controls.slint for text colors
+//   - SettingsButton from settings_controls.slint for buttons
+//   - RoundedLineEdit from rounded_line_edit.slint for inputs
+//   - Strings centralized in UserAccountStrings, injected from C++
+//
+// NOTE: all comments are ASCII to avoid encoding corruption on upload.
 
 import { FlatSurface, UiSurface } from "ui_surface.slint";
 import { UiRadius } from "ui_radius.slint";
@@ -8,7 +15,7 @@ import { WorkbenchStyle } from "workbench_controls.slint";
 import { SettingsButton } from "settings_controls.slint";
 import { RoundedLineEdit } from "rounded_line_edit.slint";
 
-// ---- 鏂囨锛圕++ 渚ф寜璇█娉ㄥ叆锛?---
+// ---- Strings injected by C++ per language ----
 export global UserAccountStrings {
     in-out property <string> panel-title: "Account";
     in-out property <string> username-label: "Username";
@@ -24,7 +31,7 @@ export global UserAccountStrings {
     in-out property <string> refresh: "Refresh";
 }
 
-// ---- 鏁版嵁妯″瀷 ----
+// ---- Data models ----
 export struct UserDeviceEntry {
     device-id: string,
     alias: string,
@@ -37,7 +44,7 @@ export struct UserGroupEntry {
     device-count: int,
 }
 
-// ---- 鍗曞彴璁惧琛?----
+// ---- One device row ----
 component UserDeviceRow inherits FlatSurface {
     in property <UserDeviceEntry> device;
     callback connect-requested;
@@ -52,7 +59,7 @@ component UserDeviceRow inherits FlatSurface {
         padding-right: 12px;
         spacing: 10px;
 
-        // 鍦ㄧ嚎鐘舵€佹寚绀虹偣
+        // Online status dot
         Rectangle {
             width: 8px;
             height: 8px;
@@ -61,7 +68,6 @@ component UserDeviceRow inherits FlatSurface {
         }
 
         VerticalLayout {
-            alignment: center;
             spacing: 2px;
             horizontal-stretch: 1;
             min-width: 0px;
@@ -72,13 +78,15 @@ component UserDeviceRow inherits FlatSurface {
                 font-weight: 600;
                 color: WorkbenchStyle.text;
                 overflow: elide;
+                vertical-alignment: center;
             }
             Text {
-                text: root.device.device-id + "  路  "
+                text: root.device.device-id + "  /  "
                     + (root.device.online ? UserAccountStrings.online : UserAccountStrings.offline);
                 font-size: 10px;
                 color: WorkbenchStyle.muted;
                 overflow: elide;
+                vertical-alignment: center;
             }
         }
 
@@ -93,22 +101,34 @@ component UserDeviceRow inherits FlatSurface {
     }
 }
 
-// ---- 涓婚潰鏉?----
+// ---- Main panel ----
 export component UserAccountPanel inherits Rectangle {
-    // 鐘舵€?    in-out property <bool> signed-in: false;
+    // Strings
+    in-out property <string> title-text: UserAccountStrings.panel-title;
+    in-out property <string> username-text: UserAccountStrings.username-label;
+    in-out property <string> password-text: UserAccountStrings.password-label;
+    in-out property <string> sign-in-text: UserAccountStrings.sign-in;
+    in-out property <string> signing-in-text: UserAccountStrings.signing-in;
+    in-out property <string> sign-out-text: UserAccountStrings.sign-out;
+    in-out property <string> devices-title-text: UserAccountStrings.my-devices;
+    in-out property <string> no-devices-text: UserAccountStrings.no-devices;
+    in-out property <string> refresh-text: UserAccountStrings.refresh;
+
+    // State
+    in-out property <bool> signed-in: false;
     in-out property <bool> signing-in: false;
     in-out property <bool> busy: false;
     in-out property <string> error-text: "";
     in-out property <string> display-name: "";
 
-    // 琛ㄥ崟
+    // Form
     in-out property <string> input-username: "";
     in-out property <string> input-password: "";
 
-    // 鏁版嵁
+    // Data
     in-out property <[UserDeviceEntry]> devices: [];
 
-    // 鍥炶皟
+    // Callbacks
     callback sign-in-requested;
     callback sign-out-requested;
     callback refresh-requested;
@@ -119,16 +139,18 @@ export component UserAccountPanel inherits Rectangle {
     VerticalLayout {
         spacing: 10px;
 
-        // ===== 澶撮儴 =====
+        // ===== Header =====
         HorizontalLayout {
             spacing: 8px;
+
             Text {
-                text: UserAccountStrings.panel-title;
+                text: root.title-text;
                 font-size: 13px;
                 font-weight: 600;
                 color: WorkbenchStyle.text;
                 vertical-alignment: center;
             }
+
             Rectangle { horizontal-stretch: 1; }
 
             if root.signed-in : Text {
@@ -137,41 +159,44 @@ export component UserAccountPanel inherits Rectangle {
                 color: WorkbenchStyle.muted;
                 vertical-alignment: center;
             }
+
             if root.signed-in : SettingsButton {
                 width: min(96px, max(64px, self.label-width));
                 height: 28px;
                 text-size: 11px;
                 quiet: true;
-                text: UserAccountStrings.sign-out;
+                text: root.sign-out-text;
                 clicked => { root.sign-out-requested(); }
             }
         }
 
-        // ===== 鏈櫥褰曪細鐧诲綍琛ㄥ崟 =====
+        // ===== Signed out: login form =====
         if !root.signed-in : VerticalLayout {
             spacing: 8px;
 
             Text {
-                text: UserAccountStrings.username-label;
+                text: root.username-text;
                 font-size: 11px;
                 color: WorkbenchStyle.muted;
+                vertical-alignment: center;
             }
             RoundedLineEdit {
                 text <=> root.input-username;
                 enabled: !root.signing-in;
-                placeholder-text: UserAccountStrings.username-label;
+                placeholder-text: root.username-text;
             }
 
             Text {
-                text: UserAccountStrings.password-label;
+                text: root.password-text;
                 font-size: 11px;
                 color: WorkbenchStyle.muted;
+                vertical-alignment: center;
             }
             RoundedLineEdit {
                 text <=> root.input-password;
                 input-type: password;
                 enabled: !root.signing-in;
-                placeholder-text: UserAccountStrings.password-label;
+                placeholder-text: root.password-text;
                 accepted => { root.sign-in-requested(); }
             }
 
@@ -190,38 +215,41 @@ export component UserAccountPanel inherits Rectangle {
                 enabled: !root.signing-in
                     && root.input-username != ""
                     && root.input-password != "";
-                text: root.signing-in ? UserAccountStrings.signing-in : UserAccountStrings.sign-in;
+                text: root.signing-in ? root.signing-in-text : root.sign-in-text;
                 clicked => { root.sign-in-requested(); }
             }
         }
 
-        // ===== 宸茬櫥褰曪細璁惧鍒楄〃 =====
+        // ===== Signed in: device list =====
         if root.signed-in : VerticalLayout {
             spacing: 8px;
 
             HorizontalLayout {
                 spacing: 8px;
+
                 Text {
-                    text: UserAccountStrings.my-devices;
+                    text: root.devices-title-text;
                     font-size: 12px;
                     font-weight: 600;
                     color: WorkbenchStyle.text;
                     vertical-alignment: center;
                 }
+
                 Rectangle { horizontal-stretch: 1; }
+
                 SettingsButton {
                     width: min(80px, max(64px, self.label-width));
                     height: 26px;
                     text-size: 10px;
                     quiet: true;
-                    text: UserAccountStrings.refresh;
+                    text: root.refresh-text;
                     enabled: !root.busy;
                     clicked => { root.refresh-requested(); }
                 }
             }
 
             if root.devices.length == 0 : Text {
-                text: UserAccountStrings.no-devices;
+                text: root.no-devices-text;
                 font-size: 11px;
                 color: WorkbenchStyle.muted;
                 wrap: word-wrap;
@@ -236,4 +264,3 @@ export component UserAccountPanel inherits Rectangle {
         }
     }
 }
-

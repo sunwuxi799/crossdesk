@@ -72,6 +72,12 @@ class ConfigCenter {
   int SetPortableServicePromptSuppressed(bool suppressed);
   int SetLastPresentedRelease(const std::string& version);
   int SetFileTransferSavePath(const std::string& path);
+  // [USER-ACCOUNT] remembered employee credential.
+  // `secret` is a DPAPI-protected blob, never plaintext.
+  int SetAccountCredential(const std::string& username,
+                           const std::string& secret);
+  int ClearAccountCredential();
+
 
   // read config
 
@@ -105,6 +111,10 @@ class ConfigCenter {
   bool IsPortableServicePromptSuppressed() const;
   std::string GetLastPresentedRelease() const;
   std::string GetFileTransferSavePath() const;
+  std::string GetAccountUsername() const;
+  std::string GetAccountSecret() const;
+  bool HasAccountCredential() const;
+
 
   int Load();
   int Save();
@@ -152,6 +162,9 @@ class ConfigCenter {
   bool portable_service_prompt_suppressed_ = false;
   std::string last_presented_release_;
   std::string file_transfer_save_path_ = "";
+  mutable std::mutex account_credential_mutex_;
+  std::string account_username_;
+  std::string account_secret_;
 };
 }  // namespace crossdesk
 #endif

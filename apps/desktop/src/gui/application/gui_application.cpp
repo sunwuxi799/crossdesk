@@ -1818,7 +1818,7 @@ void GuiApplication::BindMainCallbacks(bool gallery_window) {
     main->set_user_input_password(slint::SharedString(""));
     if (!user_bridge_->RequestSignIn(user, password)) {
       pending_account_password_.clear();
-      UI_THREAD_SYNC_USER_ACCOUNT();
+      SyncUserAccountToUi();
     } else {
       SyncUserAccountToUi();
     }

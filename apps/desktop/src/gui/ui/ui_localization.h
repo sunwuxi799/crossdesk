@@ -59,25 +59,26 @@ inline int ApplyMainWindowStrings(
   languages.push_back(Text(localization::Literal("跟随系统", language)));
   window->set_language_options(std::make_shared<slint::VectorModel<slint::SharedString>>(languages));
   {
-    // [USER-ACCOUNT] Account strings (ASCII escapes keep this file
-    // independent of the compiler code page).
+    // [USER-ACCOUNT] Account strings.
+    // Assigned directly: localization::Literal() is a table lookup and
+    // returns an empty string for keys that are not pre-registered.
     auto& account = window->global<ui::UserAccountStrings>();
-    account.set_panel_title(Text(localization::Literal("\u8d26\u53f7", language)));
-    account.set_username_label(Text(localization::Literal("\u7528\u6237\u540d", language)));
-    account.set_password_label(Text(localization::Literal("\u5bc6\u7801", language)));
-    account.set_sign_in(Text(localization::Literal("\u767b\u5f55", language)));
-    account.set_signing_in(Text(localization::Literal("\u767b\u5f55\u4e2d...", language)));
-    account.set_sign_out(Text(localization::Literal("\u9000\u51fa\u767b\u5f55", language)));
-    account.set_my_devices(Text(localization::Literal("\u6211\u7684\u8bbe\u5907", language)));
-    account.set_no_devices(Text(localization::Literal("\u5f53\u524d\u8d26\u53f7\u8fd8\u6ca1\u6709\u5206\u914d\u8bbe\u5907", language)));
-    account.set_online(Text(localization::Literal("\u5728\u7ebf", language)));
-    account.set_offline(Text(localization::Literal("\u79bb\u7ebf", language)));
-    account.set_connect(Text(localization::Literal("\u8fde\u63a5", language)));
-    account.set_refresh(Text(localization::Literal("\u5237\u65b0", language)));
-    account.set_remember_password(Text(localization::Literal("\u8bb0\u4f4f\u5bc6\u7801", language)));
-    account.set_welcome_title(Text(localization::Literal("\u767b\u5f55 CrossDesk", language)));
-    account.set_welcome_hint(Text(localization::Literal("\u60a8\u7684\u8d26\u53f7\u51b3\u5b9a\u4e86\u53ef\u4ee5\u8bbf\u95ee\u54ea\u4e9b\u8bbe\u5907", language)));
-    account.set_connecting(Text(localization::Literal("\u6b63\u5728\u8fde\u63a5...", language)));
+    account.set_panel_title(Text("\u8d26\u53f7"));
+    account.set_username_label(Text("\u7528\u6237\u540d"));
+    account.set_password_label(Text("\u5bc6\u7801"));
+    account.set_sign_in(Text("\u767b\u5f55"));
+    account.set_signing_in(Text("\u767b\u5f55\u4e2d..."));
+    account.set_sign_out(Text("\u9000\u51fa\u767b\u5f55"));
+    account.set_my_devices(Text("\u6211\u7684\u8bbe\u5907"));
+    account.set_no_devices(Text("\u5f53\u524d\u8d26\u53f7\u8fd8\u6ca1\u6709\u5206\u914d\u8bbe\u5907"));
+    account.set_online(Text("\u5728\u7ebf"));
+    account.set_offline(Text("\u79bb\u7ebf"));
+    account.set_connect(Text("\u8fde\u63a5"));
+    account.set_refresh(Text("\u5237\u65b0"));
+    account.set_remember_password(Text("\u8bb0\u4f4f\u5bc6\u7801"));
+    account.set_welcome_title(Text("\u767b\u5f55 CrossDesk"));
+    account.set_welcome_hint(Text("\u60a8\u7684\u8d26\u53f7\u51b3\u5b9a\u4e86\u53ef\u4ee5\u8bbf\u95ee\u54ea\u4e9b\u8bbe\u5907"));
+    account.set_connecting(Text("\u6b63\u5728\u8fde\u63a5..."));
   }
 
   auto& trust = window->global<ui::TrustStrings>();

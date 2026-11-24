@@ -135,6 +135,12 @@ class GuiRuntime : protected gui_detail::GuiState {
   void InitializeUserAccount();
   void RefreshUserDeviceGroups();
   std::vector<UserDeviceSnapshot> UserDevices() const;
+  // [USER-ACCOUNT] remembered credential handling.
+  void SetRememberPassword(bool remember) { remember_password_ = remember; }
+  bool remember_password() const { return remember_password_; }
+  void PersistAccountCredential(const std::string& password);
+  void ClearPersistedCredential();
+  bool TryRestoreAccountSession();
   void SetUserAccountUiHook(std::function<void()> hook) {
     user_account_ui_hook_ = std::move(hook);
   }
@@ -159,6 +165,9 @@ class GuiRuntime : protected gui_detail::GuiState {
   std::unique_ptr<UserSignalBridge> user_bridge_;
   // Set by GuiApplication; keeps Slint access on the owning layer.
   std::function<void()> user_account_ui_hook_;
+  bool remember_password_ = true;
+  bool restore_attempted_ = false;
+  std::string pending_account_password_;
   struct ControllerTrust {
     PeerEventHandler* events = nullptr;
     std::string nonce;

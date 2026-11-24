@@ -1322,8 +1322,8 @@ export component MainWindow inherits Window {
                 signing-in: root.user-signing-in;
                 error-text: root.user-error-text;
                 display-name: root.user-display-name;
-                input-username: root.user-input-username;
-                input-password: root.user-input-password;
+                input-username <=> root.user-input-username;
+                input-password <=> root.user-input-password;
                 devices: root.user-devices;
 
                 sign-in-requested => { root.user-sign-in(); }
@@ -1343,9 +1343,9 @@ export component MainWindow inherits Window {
             visible: root.user-login-gate-open;
             signing-in: root.user-signing-in;
             error-text: root.user-error-text;
-            input-username: root.user-input-username;
-            input-password: root.user-input-password;
-            remember-password: root.user-remember-password;
+            input-username <=> root.user-input-username;
+            input-password <=> root.user-input-password;
+            remember-password <=> root.user-remember-password;
             sign-in-requested => { root.user-sign-in(); }
         }
 

@@ -59,20 +59,27 @@ inline int ApplyMainWindowStrings(
   languages.push_back(Text(localization::Literal("跟随系统", language)));
   window->set_language_options(std::make_shared<slint::VectorModel<slint::SharedString>>(languages));
   {
+    // [USER-ACCOUNT] Account strings (ASCII escapes keep this file
+    // independent of the compiler code page).
     auto& account = window->global<ui::UserAccountStrings>();
-    account.set_panel_title(Text(localization::Literal("账号", language)));
-    account.set_username_label(Text(localization::Literal("用户名", language)));
-    account.set_password_label(Text(localization::Literal("密码", language)));
-    account.set_sign_in(Text(localization::Literal("登录", language)));
-    account.set_signing_in(Text(localization::Literal("登录中...", language)));
-    account.set_sign_out(Text(localization::Literal("退出登录", language)));
-    account.set_my_devices(Text(localization::Literal("我的设备", language)));
-    account.set_no_devices(Text(localization::Literal("当前账号还没有分配设备", language)));
-    account.set_online(Text(localization::Literal("在线", language)));
-    account.set_offline(Text(localization::Literal("离线", language)));
-    account.set_connect(Text(localization::Literal("连接", language)));
-    account.set_refresh(Text(localization::Literal("刷新", language)));
+    account.set_panel_title(Text(localization::Literal("\u8d26\u53f7", language)));
+    account.set_username_label(Text(localization::Literal("\u7528\u6237\u540d", language)));
+    account.set_password_label(Text(localization::Literal("\u5bc6\u7801", language)));
+    account.set_sign_in(Text(localization::Literal("\u767b\u5f55", language)));
+    account.set_signing_in(Text(localization::Literal("\u767b\u5f55\u4e2d...", language)));
+    account.set_sign_out(Text(localization::Literal("\u9000\u51fa\u767b\u5f55", language)));
+    account.set_my_devices(Text(localization::Literal("\u6211\u7684\u8bbe\u5907", language)));
+    account.set_no_devices(Text(localization::Literal("\u5f53\u524d\u8d26\u53f7\u8fd8\u6ca1\u6709\u5206\u914d\u8bbe\u5907", language)));
+    account.set_online(Text(localization::Literal("\u5728\u7ebf", language)));
+    account.set_offline(Text(localization::Literal("\u79bb\u7ebf", language)));
+    account.set_connect(Text(localization::Literal("\u8fde\u63a5", language)));
+    account.set_refresh(Text(localization::Literal("\u5237\u65b0", language)));
+    account.set_remember_password(Text(localization::Literal("\u8bb0\u4f4f\u5bc6\u7801", language)));
+    account.set_welcome_title(Text(localization::Literal("\u767b\u5f55 CrossDesk", language)));
+    account.set_welcome_hint(Text(localization::Literal("\u60a8\u7684\u8d26\u53f7\u51b3\u5b9a\u4e86\u53ef\u4ee5\u8bbf\u95ee\u54ea\u4e9b\u8bbe\u5907", language)));
+    account.set_connecting(Text(localization::Literal("\u6b63\u5728\u8fde\u63a5...", language)));
   }
+
   auto& trust = window->global<ui::TrustStrings>();
   trust.set_title(Text(localization::Literal("可信设备", language)));
   trust.set_only(Text(localization::Literal("仅允许可信设备控制", language)));

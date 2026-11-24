@@ -830,6 +830,50 @@ int ConfigCenter::SetFileTransferSavePath(const std::string& path) {
   return 0;
 }
 
+// [USER-ACCOUNT] Persist the remembered employee credential.
+// The secret is already DPAPI-protected by the caller; this class never sees
+// the plaintext password.
+int ConfigCenter::SetAccountCredential(const std::string& username,
+                                       const std::string& secret) {
+  if (username.size() >= 256 || secret.size() >= 4096) return -1;
+  const auto invalid = [](unsigned char c) { return c < 32 || c == 127; };
+  if (std::any_of(username.begin(), username.end(), invalid)) return -1;
+  if (std::any_of(secret.begin(), secret.end(), invalid)) return -1;
+
+  std::lock_guard<std::mutex> lock(account_credential_mutex_);
+  if (StoreValues({{"account_username", username},
+                   {"account_secret", secret}}) != 0) {
+    return -1;
+  }
+  account_username_ = username;
+  account_secret_ = secret;
+  return 0;
+}
+
+int ConfigCenter::ClearAccountCredential() {
+  std::lock_guard<std::mutex> lock(account_credential_mutex_);
+  account_username_.clear();
+  account_secret_.clear();
+  return StoreValues({{"account_username", std::string()},
+                      {"account_secret", std::string()}});
+}
+
+std::string ConfigCenter::GetAccountUsername() const {
+  std::lock_guard<std::mutex> lock(account_credential_mutex_);
+  return account_username_;
+}
+
+std::string ConfigCenter::GetAccountSecret() const {
+  std::lock_guard<std::mutex> lock(account_credential_mutex_);
+  return account_secret_;
+}
+
+bool ConfigCenter::HasAccountCredential() const {
+  std::lock_guard<std::mutex> lock(account_credential_mutex_);
+  return !account_username_.empty() && !account_secret_.empty();
+}
+
+
 std::string ConfigCenter::GetFileTransferSavePath() const {
   std::lock_guard<std::mutex> lock(file_path_mutex_);
   return file_transfer_save_path_;

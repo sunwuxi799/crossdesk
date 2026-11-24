@@ -2375,6 +2375,31 @@ export component MainWindow inherits Window {
                     clicked => { root.menu-open = false; root.settings-open = true; }
                 }
             }
+            // [USER-ACCOUNT] menu entry
+            menu-user-account := Rectangle {
+                height: 30px;
+                background: user-account-touch.pressed ? WorkbenchStyle.pressed-surface
+                          : user-account-touch.has-hover ? WorkbenchStyle.hover-surface
+                                                         : transparent;
+                border-width: 0px;
+                border-radius: UiRadius.control;
+                animate background { duration: 120ms; }
+                accessible-role: button;
+                accessible-label: UserAccountStrings.panel-title;
+                accessible-action-default => { user-account-touch.clicked(); }
+                Text {
+                    x: 8px;
+                    height: parent.height;
+                    text: UserAccountStrings.panel-title;
+                    color: WorkbenchStyle.text; font-size: 12px;
+                    vertical-alignment: center;
+                    accessible-role: none;
+                }
+                user-account-touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.menu-open = false; root.user-account-open = true; }
+                }
+            }
             Rectangle {
                 height: 7px;
                 SurfaceSeparator {

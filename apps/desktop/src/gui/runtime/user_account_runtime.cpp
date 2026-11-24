@@ -23,6 +23,12 @@ void GuiRuntime::InitializeUserAccount() {
   if (user_account_) return;
   user_account_ = std::make_shared<UserAccount>();
   user_bridge_ = std::make_unique<UserSignalBridge>(user_account_);
+  // Forward account protocol messages over the primary signaling channel.
+  user_bridge_->SetSender([this](const nlohmann::json& payload) -> bool {
+    if (!peer_) return false;
+    const std::string text = payload.dump();
+    return PeerSendSignalMessage(peer_, text.data(), text.size()) == 0;
+  });
   user_account_->SetStateCallback([this](UserLoginState) {
     // Post through the hook so the GUI thread owns all Slint access.
     if (user_account_ui_hook_) user_account_ui_hook_();

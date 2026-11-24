@@ -59,6 +59,8 @@ private:
   void ShowMainWindow(const std::string& activation_token = {});
   bool MinimizeMainWindowToTray();
   void BindMainCallbacks(bool gallery_window = false);
+  // [USER-ACCOUNT] mirror account state into the Slint windows.
+  void SyncUserAccountToUi();
   void BindTrustedDeviceCallbacks(bool gallery_window = false);
   void BindStreamCallbacks(StreamView& view);
   void Tick();

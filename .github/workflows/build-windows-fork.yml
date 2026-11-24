@@ -1,0 +1,112 @@
+name: Build Windows client (user permission fork)
+
+# 只构建 Windows x64 客户端，产出安装包。
+# 与官方 build.yml 的 build-windows-x64 job 保持一致，
+# 但去掉签名、发布等步骤，只保留编译与产物上传。
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - HEAD
+      - main
+    paths:
+      - 'apps/desktop/**'
+      - 'libs/**'
+      - 'deps/**'
+      - '.github/workflows/build-windows-fork.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-windows-fork-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-windows-x64:
+    name: Build on Windows x64
+    runs-on: windows-2022
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup xmake
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: 3.1.2
+
+      - name: Cache xmake packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/AppData/Local/.xmake
+            ~/.xmake
+          key: ${{ runner.os }}-xmake-${{ hashFiles('xmake.lua', 'apps/desktop/xmake/*.lua') }}
+          restore-keys: |
+            ${{ runner.os }}-xmake-
+
+      - name: Show toolchain
+        shell: pwsh
+        run: |
+          xmake --version
+          clang-cl --version 2>$null
+          cmake --version
+
+      - name: Configure
+        shell: pwsh
+        run: |
+          xmake f -p windows -a x64 -m release `
+            --CROSSDESK_VERSION=${{ github.run_number }} `
+            --USE_CUDA=false -y
+
+      - name: Build
+        shell: pwsh
+        run: |
+          xmake b -j$env:NUMBER_OF_PROCESSORS -y crossdesk
+
+      - name: Show output
+        if: always()
+        shell: pwsh
+        run: |
+          Get-ChildItem build -Recurse -Filter "crossdesk.exe" -ErrorAction SilentlyContinue |
+            Select-Object FullName, Length
+
+      - name: Package (portable zip)
+        shell: pwsh
+        run: |
+          $out = "build\package"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          $exe = Get-ChildItem build -Recurse -Filter "crossdesk.exe" | Select-Object -First 1
+          if (-not $exe) { throw "crossdesk.exe not found" }
+          Write-Host "Found: $($exe.FullName)"
+          # 拷贝可执行文件及同目录下的运行库
+          Copy-Item $exe.FullName $out
+          Get-ChildItem $exe.Directory -Filter "*.dll" -ErrorAction SilentlyContinue |
+            Copy-Item -Destination $out
+          # 打包
+          $zipName = "crossdesk-win-x64-portable.zip"
+          Compress-Archive -Path "$out\*" -DestinationPath "$zipName" -Force
+          Write-Host "Created $zipName"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: crossdesk-win-x64-portable
+          path: crossdesk-win-x64-portable.zip
+          retention-days: 30
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            build/**/*.log
+          retention-days: 7
+          if-no-files-found: ignore

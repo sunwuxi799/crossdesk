@@ -109,6 +109,16 @@ void PeerEventHandler::OnSignalMessage(const char* message, size_t size,
   if (!handler) return;
   auto callback = handler->EnterCallback();
   if (!callback) return;
+
+  // [USER-ACCOUNT] Consume account protocol replies before anything else.
+  if (handler->owner_.user_bridge() && message != nullptr && size > 0) {
+    try {
+      const auto parsed = nlohmann::json::parse(message, message + size);
+      if (handler->owner_.user_bridge()->HandleIncoming(parsed)) return;
+    } catch (const std::exception&) {
+      // Not our message; fall through to the regular path.
+    }
+  }
   GuiRuntime* runtime = &handler->owner_;
   if (!message || size == 0) {
     return;

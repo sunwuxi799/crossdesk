@@ -1302,7 +1302,8 @@ export component MainWindow inherits Window {
                 y: 8px;
                 width: 22px;
                 height: 22px;
-                icon: FontAwesomeIcons.close;
+                icon: FontAwesomeIcons.xmark;
+                accessible-role: button;
                 accessible-label: "Close";
                 clicked => { root.user-account-open = false; }
             }

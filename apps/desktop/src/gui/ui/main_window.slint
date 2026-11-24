@@ -20,7 +20,8 @@ import { GroupFilter } from "group_filter.slint";
 import { ScrollView } from "std-widgets.slint";
 import { RoundedLineEdit } from "rounded_line_edit.slint";
 // [USER-ACCOUNT] import
-import { UserAccountPanel, UserAccountStrings, UserDeviceEntry } from "user_account_panel.slint";
+import { UserAccountPanel, UserAccountStrings, UserDeviceEntry,
+         UserLoginGate } from "user_account_panel.slint";
 import { AnnouncementItem, MessagePanel, MessageStrings } from "message_panel.slint";
 import { FontAwesomeIcons, IconButton, CompactComboBox, ImGuiCheckBox, CompactButton, PrimaryButton, SecondaryButton, ToggleSwitch, SectionTitle, DialogSurface, ImGuiFontStyle, ControlStyle } from "common.slint";
 import "../assets/fonts/message_spacing.ttf";
@@ -854,6 +855,9 @@ export component MainWindow inherits Window {
     in-out property <bool> user-signed-in: false;
     in-out property <bool> user-signing-in: false;
     in-out property <bool> user-account-open: false;
+    in-out property <bool> user-login-gate-open: false;
+    in-out property <bool> user-remember-password: true;
+    in-out property <bool> user-connecting: false;
     in-out property <string> user-display-name: "";
     in-out property <string> user-error-text: "";
     in-out property <string> user-input-username: "";
@@ -1327,6 +1331,22 @@ export component MainWindow inherits Window {
                 refresh-requested => { root.user-refresh-devices(); }
                 device-connect-requested(id) => { root.user-connect-device(id); }
             }
+        }
+
+
+        // [USER-ACCOUNT] startup login gate covers the whole window
+        login-gate-instance := UserLoginGate {
+            x: 0px; y: 0px;
+            width: parent.width;
+            height: parent.height;
+            z: 100;
+            visible: root.user-login-gate-open;
+            signing-in: root.user-signing-in;
+            error-text: root.user-error-text;
+            input-username: root.user-input-username;
+            input-password: root.user-input-password;
+            remember-password: root.user-remember-password;
+            sign-in-requested => { root.user-sign-in(); }
         }
 
         // Slint owns the client area below the native macOS title bar. Draw

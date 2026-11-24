@@ -157,6 +157,8 @@ class GuiRuntime : protected gui_detail::GuiState {
   // [USER-ACCOUNT] null until InitializeUserAccount runs.
   std::shared_ptr<UserAccount> user_account_;
   std::unique_ptr<UserSignalBridge> user_bridge_;
+  // Set by GuiApplication; keeps Slint access on the owning layer.
+  std::function<void()> user_account_ui_hook_;
   struct ControllerTrust {
     PeerEventHandler* events = nullptr;
     std::string nonce;

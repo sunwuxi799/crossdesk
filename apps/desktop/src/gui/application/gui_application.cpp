@@ -1272,6 +1272,8 @@ int GuiApplication::Run() {
   // [USER-ACCOUNT] employee account state machine
   InitializeUserAccount();
   SetUserAccountUiHook([this]() { SyncUserAccountToUi(); });
+  // Try a remembered session; the gate stays visible until the reply arrives.
+  restore_attempted_ = TryRestoreAccountSession();
 #ifdef __APPLE__
   StartMacPermissionMigration(false);
 #endif
@@ -1782,6 +1784,9 @@ void GuiApplication::SyncUserAccountToUi() {
       account->DisplayName().empty() ? account->Username() : account->DisplayName();
   const std::string error = account->LastError();
 
+  // Keep the gate visible until a session exists; hide it while a restore runs.
+  const bool gate_open = !signed_in && !signing_in && !restore_attempted_;
+  const bool remember = remember_password();
   const auto apply = [&](auto* window) {
     if (!window) return;
     window->set_user_signed_in(signed_in);
@@ -1789,6 +1794,8 @@ void GuiApplication::SyncUserAccountToUi() {
     window->set_user_devices(model);
     window->set_user_display_name(slint::SharedString(display));
     window->set_user_error_text(slint::SharedString(error));
+    window->set_user_login_gate_open(gate_open);
+    window->set_user_remember_password(remember);
   };
   apply(ui_->Window(false).operator->());
   apply(ui_->Window(true).operator->());
@@ -1805,12 +1812,22 @@ void GuiApplication::BindMainCallbacks(bool gallery_window) {
     const auto password_text = main->get_user_input_password();
     const std::string user(user_text.data(), user_text.size());
     const std::string password(password_text.data(), password_text.size());
+    // Remember the opt-in before clearing the field.
+    SetRememberPassword(main->get_user_remember_password());
+    pending_account_password_ = password;
     main->set_user_input_password(slint::SharedString(""));
-    user_bridge_->RequestSignIn(user, password);
-    SyncUserAccountToUi();
+    if (!user_bridge_->RequestSignIn(user, password)) {
+      pending_account_password_.clear();
+      UI_THREAD_SYNC_USER_ACCOUNT();
+    } else {
+      SyncUserAccountToUi();
+    }
   });
   main->on_user_sign_out([this]() {
     if (!user_account_) return;
+    // Explicit sign-out forgets the stored credential.
+    ClearPersistedCredential();
+    pending_account_password_.clear();
     user_account_->SignOut();
     SyncUserAccountToUi();
   });

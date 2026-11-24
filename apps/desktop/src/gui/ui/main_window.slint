@@ -1270,7 +1270,21 @@ export component MainWindow inherits Window {
                     if event.text == Key.Escape { root.messages-open = false; }
                     return accept;
                 }
-                // [USER-ACCOUNT] panel
+                        if root.settings-open && !root.self-host-settings-open && !root.trusted-devices-open {
+                    if event.text == Key.Escape { root.cancel-settings(); root.settings-open = false; }
+                    return accept;
+                }
+                return reject;
+            }
+        }
+        TouchArea {
+            pointer-event(event) => {
+                if event.kind == PointerEventKind.down { root.copy-feedback = CopyFeedback.idle; }
+            }
+            clicked => { focus-sink.focus(); }
+        }
+
+        // [USER-ACCOUNT] panel
         if root.user-account-open : Rectangle {
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
@@ -1284,10 +1298,10 @@ export component MainWindow inherits Window {
             clip: true;
 
             IconButton {
-                x: parent.width - self.width - 10px;
-                y: 10px;
-                width: 24px;
-                height: 24px;
+                x: parent.width - 30px;
+                y: 8px;
+                width: 22px;
+                height: 22px;
                 icon: FontAwesomeIcons.close;
                 accessible-label: "Close";
                 clicked => { root.user-account-open = false; }
@@ -1295,9 +1309,9 @@ export component MainWindow inherits Window {
 
             UserAccountPanel {
                 x: 16px;
-                y: 16px;
+                y: 32px;
                 width: parent.width - 32px;
-                height: parent.height - 32px;
+                height: parent.height - 48px;
 
                 signed-in: root.user-signed-in;
                 signing-in: root.user-signing-in;
@@ -1312,20 +1326,6 @@ export component MainWindow inherits Window {
                 refresh-requested => { root.user-refresh-devices(); }
                 device-connect-requested(id) => { root.user-connect-device(id); }
             }
-        }
-
-        if root.settings-open && !root.self-host-settings-open && !root.trusted-devices-open {
-                    if event.text == Key.Escape { root.cancel-settings(); root.settings-open = false; }
-                    return accept;
-                }
-                return reject;
-            }
-        }
-        TouchArea {
-            pointer-event(event) => {
-                if event.kind == PointerEventKind.down { root.copy-feedback = CopyFeedback.idle; }
-            }
-            clicked => { focus-sink.focus(); }
         }
 
         // Slint owns the client area below the native macOS title bar. Draw

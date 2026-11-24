@@ -12,6 +12,8 @@
 #include <vector>
 
 #include "runtime/gui_runtime.h"
+
+#include "dpapi_secret.h"
 #include "runtime/user_account.h"
 #include "runtime/user_signal_bridge.h"
 
@@ -51,6 +53,55 @@ std::vector<GuiRuntime::UserDeviceSnapshot> GuiRuntime::UserDevices() const {
     }
   }
   return out;
+}
+
+
+// [USER-ACCOUNT] Store the password (DPAPI-protected) when the user opted in.
+void GuiRuntime::PersistAccountCredential(const std::string& password) {
+  if (!config_center_ || !user_account_) return;
+  const std::string username = user_account_->Username();
+  if (username.empty()) return;
+
+  if (!remember_password_) {
+    ClearPersistedCredential();
+    return;
+  }
+
+  std::string protected_blob;
+  if (!ProtectSecret(password, &protected_blob) || protected_blob.empty()) {
+    // DPAPI unavailable: do not fall back to plaintext.
+    ClearPersistedCredential();
+    return;
+  }
+  config_center_->SetAccountCredential(username, protected_blob);
+}
+
+// [USER-ACCOUNT] Drop the stored credential (sign-out or opt-out).
+void GuiRuntime::ClearPersistedCredential() {
+  if (config_center_) config_center_->ClearAccountCredential();
+}
+
+// [USER-ACCOUNT] Restore a remembered session at startup.
+// Returns true when the bridge accepted the request, so the caller can keep the
+// login gate hidden and let the reply arrive asynchronously.
+bool GuiRuntime::TryRestoreAccountSession() {
+  if (!config_center_ || !user_bridge_) return false;
+  if (!config_center_->HasAccountCredential()) return false;
+
+  const std::string username = config_center_->GetAccountUsername();
+  const std::string blob = config_center_->GetAccountSecret();
+  if (username.empty() || blob.empty()) return false;
+
+  std::string password;
+  if (!UnprotectSecret(blob, &password) || password.empty()) {
+    // Blob belongs to another Windows user or the machine changed.
+    ClearPersistedCredential();
+    return false;
+  }
+
+  if (!user_bridge_->RequestSignIn(username, password)) return false;
+  if (user_account_) user_account_->RememberUsername(username);
+  return true;
 }
 
 }  // namespace crossdesk

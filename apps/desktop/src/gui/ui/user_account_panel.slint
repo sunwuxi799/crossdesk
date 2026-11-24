@@ -1,0 +1,241 @@
+﻿// CrossDesk - 鍛樺伐璐﹀彿鐧诲綍涓庤澶囧垎缁勫垪琛?//
+// 涓ユ牸閬靛惊椤圭洰鏃㈡湁 Slint 绾﹀畾锛?//   - 鐢?ui_surface.slint 鐨?FlatSurface / UiSurface 鍋氬崱鐗囦笌鎻忚竟
+//   - 鐢?workbench_controls.slint 鐨?WorkbenchStyle 鍋氭枃瀛楅厤鑹?//   - 鐢?settings_controls.slint 鐨?SettingsButton 鍋氭寜閽?//   - 鏂囨闆嗕腑鍦?UserAccountStrings global锛岀敱 C++ 渚ф敞鍏ュ璇█
+
+import { VerticalLayout, HorizontalLayout } from "std-widgets.slint";
+import { FlatSurface, UiSurface } from "ui_surface.slint";
+import { UiRadius } from "ui_radius.slint";
+import { WorkbenchStyle } from "workbench_controls.slint";
+import { SettingsButton } from "settings_controls.slint";
+import { RoundedLineEdit } from "rounded_line_edit.slint";
+
+// ---- 鏂囨锛圕++ 渚ф寜璇█娉ㄥ叆锛?---
+export global UserAccountStrings {
+    in-out property <string> panel-title: "Account";
+    in-out property <string> username-label: "Username";
+    in-out property <string> password-label: "Password";
+    in-out property <string> sign-in: "Sign in";
+    in-out property <string> signing-in: "Signing in...";
+    in-out property <string> sign-out: "Sign out";
+    in-out property <string> my-devices: "My devices";
+    in-out property <string> no-devices: "No devices assigned to your account yet.";
+    in-out property <string> online: "Online";
+    in-out property <string> offline: "Offline";
+    in-out property <string> connect: "Connect";
+    in-out property <string> refresh: "Refresh";
+}
+
+// ---- 鏁版嵁妯″瀷 ----
+export struct UserDeviceEntry {
+    device-id: string,
+    alias: string,
+    online: bool,
+}
+
+export struct UserGroupEntry {
+    group-id: int,
+    group-name: string,
+    device-count: int,
+}
+
+// ---- 鍗曞彴璁惧琛?----
+component UserDeviceRow inherits FlatSurface {
+    in property <UserDeviceEntry> device;
+    callback connect-requested;
+
+    height: 52px;
+    background: white;
+    outline-color: UiSurface.edge;
+    border-radius: UiRadius.control;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 10px;
+
+        // 鍦ㄧ嚎鐘舵€佹寚绀虹偣
+        Rectangle {
+            width: 8px;
+            height: 8px;
+            border-radius: 4px;
+            vertical-alignment: center;
+            background: root.device.online ? #1a7f37 : #94a3b8;
+        }
+
+        VerticalLayout {
+            alignment: center;
+            spacing: 2px;
+            horizontal-stretch: 1;
+            min-width: 0px;
+
+            Text {
+                text: root.device.alias != "" ? root.device.alias : root.device.device-id;
+                font-size: 12px;
+                font-weight: 600;
+                color: WorkbenchStyle.text;
+                overflow: elide;
+            }
+            Text {
+                text: root.device.device-id + "  路  "
+                    + (root.device.online ? UserAccountStrings.online : UserAccountStrings.offline);
+                font-size: 10px;
+                color: WorkbenchStyle.muted;
+                overflow: elide;
+            }
+        }
+
+        SettingsButton {
+            width: min(90px, max(64px, self.label-width));
+            height: 28px;
+            text-size: 11px;
+            text: UserAccountStrings.connect;
+            enabled: root.device.online;
+            clicked => { root.connect-requested(); }
+        }
+    }
+}
+
+// ---- 涓婚潰鏉?----
+export component UserAccountPanel inherits Rectangle {
+    // 鐘舵€?    in-out property <bool> signed-in: false;
+    in-out property <bool> signing-in: false;
+    in-out property <bool> busy: false;
+    in-out property <string> error-text: "";
+    in-out property <string> display-name: "";
+
+    // 琛ㄥ崟
+    in-out property <string> input-username: "";
+    in-out property <string> input-password: "";
+
+    // 鏁版嵁
+    in-out property <[UserDeviceEntry]> devices: [];
+
+    // 鍥炶皟
+    callback sign-in-requested;
+    callback sign-out-requested;
+    callback refresh-requested;
+    callback device-connect-requested(string);
+
+    background: transparent;
+
+    VerticalLayout {
+        spacing: 10px;
+
+        // ===== 澶撮儴 =====
+        HorizontalLayout {
+            spacing: 8px;
+            Text {
+                text: UserAccountStrings.panel-title;
+                font-size: 13px;
+                font-weight: 600;
+                color: WorkbenchStyle.text;
+                vertical-alignment: center;
+            }
+            Rectangle { horizontal-stretch: 1; }
+
+            if root.signed-in : Text {
+                text: root.display-name;
+                font-size: 11px;
+                color: WorkbenchStyle.muted;
+                vertical-alignment: center;
+            }
+            if root.signed-in : SettingsButton {
+                width: min(96px, max(64px, self.label-width));
+                height: 28px;
+                text-size: 11px;
+                quiet: true;
+                text: UserAccountStrings.sign-out;
+                clicked => { root.sign-out-requested(); }
+            }
+        }
+
+        // ===== 鏈櫥褰曪細鐧诲綍琛ㄥ崟 =====
+        if !root.signed-in : VerticalLayout {
+            spacing: 8px;
+
+            Text {
+                text: UserAccountStrings.username-label;
+                font-size: 11px;
+                color: WorkbenchStyle.muted;
+            }
+            RoundedLineEdit {
+                text <=> root.input-username;
+                enabled: !root.signing-in;
+                placeholder-text: UserAccountStrings.username-label;
+            }
+
+            Text {
+                text: UserAccountStrings.password-label;
+                font-size: 11px;
+                color: WorkbenchStyle.muted;
+            }
+            RoundedLineEdit {
+                text <=> root.input-password;
+                input-type: password;
+                enabled: !root.signing-in;
+                placeholder-text: UserAccountStrings.password-label;
+                accepted => { root.sign-in-requested(); }
+            }
+
+            if root.error-text != "" : Text {
+                text: root.error-text;
+                font-size: 11px;
+                color: UiSurface.error;
+                wrap: word-wrap;
+            }
+
+            SettingsButton {
+                width: min(160px, max(96px, self.label-width));
+                height: 30px;
+                primary: true;
+                text-size: 11px;
+                enabled: !root.signing-in
+                    && root.input-username != ""
+                    && root.input-password != "";
+                text: root.signing-in ? UserAccountStrings.signing-in : UserAccountStrings.sign-in;
+                clicked => { root.sign-in-requested(); }
+            }
+        }
+
+        // ===== 宸茬櫥褰曪細璁惧鍒楄〃 =====
+        if root.signed-in : VerticalLayout {
+            spacing: 8px;
+
+            HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    text: UserAccountStrings.my-devices;
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: WorkbenchStyle.text;
+                    vertical-alignment: center;
+                }
+                Rectangle { horizontal-stretch: 1; }
+                SettingsButton {
+                    width: min(80px, max(64px, self.label-width));
+                    height: 26px;
+                    text-size: 10px;
+                    quiet: true;
+                    text: UserAccountStrings.refresh;
+                    enabled: !root.busy;
+                    clicked => { root.refresh-requested(); }
+                }
+            }
+
+            if root.devices.length == 0 : Text {
+                text: UserAccountStrings.no-devices;
+                font-size: 11px;
+                color: WorkbenchStyle.muted;
+                wrap: word-wrap;
+            }
+
+            for device[i] in root.devices : UserDeviceRow {
+                device: device;
+                connect-requested => {
+                    root.device-connect-requested(device.device-id);
+                }
+            }
+        }
+    }
+}
+

@@ -1268,6 +1268,8 @@ int GuiApplication::Run() {
   }
 #endif
   InitializeTrustedDevices(path_manager_->GetConfigPath() / "trusted-devices");
+  // [USER-ACCOUNT] employee account state machine
+  InitializeUserAccount();
 #ifdef __APPLE__
   StartMacPermissionMigration(false);
 #endif
@@ -1759,6 +1761,34 @@ void GuiApplication::ResetSettingsUi(bool gallery_window) {
 
 void GuiApplication::BindMainCallbacks(bool gallery_window) {
   auto* main = ui_->Window(gallery_window).operator->();
+
+  // [USER-ACCOUNT] Bind the account panel callbacks.
+  if (ui_ && ui_->main) {
+    auto* main = ui_->main;
+    main->on_user_sign_in([this, main]() {
+      if (!user_account_ || !user_bridge_) return;
+      const std::string user(main->get_user_input_username().data(),
+                             main->get_user_input_username().size());
+      const std::string password(main->get_user_input_password().data(),
+                                 main->get_user_input_password().size());
+      main->set_user_input_password(slint::SharedString(""));
+      user_bridge_->RequestSignIn(user, password);
+      BroadcastUserAccountState();
+    });
+    main->on_user_sign_out([this]() {
+      if (!user_account_) return;
+      user_account_->SignOut();
+      BroadcastUserAccountState();
+    });
+    main->on_user_refresh_devices([this]() { RefreshUserDeviceGroups(); });
+    main->on_user_connect_device([this](const slint::SharedString& id) {
+      if (!user_account_) return;
+      const std::string device(id.data(), id.size());
+      if (!user_account_->CanAccess(device)) return;
+      ConnectTo(device, nullptr, false, true, false);
+    });
+  }
+
   main->on_gallery_pointer([this](slint::PointerEventButton button,
                                  slint::PointerEventKind kind, float x,
                                  float y) {
@@ -2381,11 +2411,7 @@ void GuiApplication::BindStreamCallbacks(StreamView& view) {
   });
   stream->on_minimize_stream_window([&view] {
     view.ObserveWindowState();
-#if defined(__APPLE__)
-    MinimizeMacStreamWindow(view.window->window().appkit_view());
-#else
     view.window->window().set_minimized(true);
-#endif
   });
   stream->on_toggle_maximize_stream_window([&view] {
     view.ObserveWindowState();
@@ -4010,11 +4036,7 @@ void GuiApplication::SyncStreamWindow(StreamView& view) {
   if (view.chrome_attempts > 0) {
     if (ConfigureStreamWindowLiveResize(stream->window().appkit_view(),
             [weak = slint::ComponentWeakHandle(stream)](bool active) {
-              if (auto handle = weak.lock()) {
-                (*handle)->set_fullscreen_transitioning(active);
-                return (*handle)->get_native_video_enabled();
-              }
-              return false;
+              if (auto handle = weak.lock()) (*handle)->set_fullscreen_transitioning(active);
             })) {
       view.chrome_attempts = 0;
     } else {

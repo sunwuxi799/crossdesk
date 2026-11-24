@@ -24,7 +24,7 @@ template <typename Component>
 void ApplyServerStrings(const Component& component, int language_index) {
   const int language = localization::detail::ClampLanguageIndex(language_index);
   auto& strings = component->template global<ui::ServerStrings>();
-  const auto& badge = localization::Literal("è¢«æ§ä¸­ Â· {0} å°", language);
+  const auto& badge = localization::Literal("±»¿ØÖĞ ¡¤ {0} Ì¨", language);
   const auto count = badge.find("{0}");
   strings.set_controlled_prefix(Text(badge.substr(0, count)));
   strings.set_controlled_suffix(Text(count == std::string::npos ? "" : badge.substr(count + 3)));
@@ -45,7 +45,7 @@ inline int ApplyMainWindowStrings(
       localization::detail::ClampLanguageIndex(language_index);
   auto& gallery = window->global<ui::GalleryStrings>();
   gallery.set_language(language);
-  const auto& retry = localization::Literal("è¯·åœ¨ {0} ç§’åé‡è¯•", language);
+  const auto& retry = localization::Literal("ÇëÔÚ {0} ÃëºóÖØÊÔ", language);
   const auto split = retry.find("{0}");
   gallery.set_retry_prefix(Text(retry.substr(0, split)));
   gallery.set_retry_suffix(Text(split == std::string::npos ? "" : retry.substr(split + 3)));
@@ -56,34 +56,49 @@ inline int ApplyMainWindowStrings(
   std::vector<slint::SharedString> languages;
   for (const auto& option : localization::GetSupportedLanguages())
     languages.push_back(Text(option.display_name));
-  languages.push_back(Text(localization::Literal("è·Ÿéšç³»ç»Ÿ", language)));
+  languages.push_back(Text(localization::Literal("¸úËæÏµÍ³", language)));
   window->set_language_options(std::make_shared<slint::VectorModel<slint::SharedString>>(languages));
+  {
+    auto& account = window->global<ui::UserAccountStrings>();
+    account.set_panel_title(Text(localization::Literal("ÕËºÅ", language)));
+    account.set_username_label(Text(localization::Literal("ÓÃ»§Ãû", language)));
+    account.set_password_label(Text(localization::Literal("ÃÜÂë", language)));
+    account.set_sign_in(Text(localization::Literal("µÇÂ¼", language)));
+    account.set_signing_in(Text(localization::Literal("µÇÂ¼ÖĞ...", language)));
+    account.set_sign_out(Text(localization::Literal("ÍË³öµÇÂ¼", language)));
+    account.set_my_devices(Text(localization::Literal("ÎÒµÄÉè±¸", language)));
+    account.set_no_devices(Text(localization::Literal("µ±Ç°ÕËºÅ»¹Ã»ÓĞ·ÖÅäÉè±¸", language)));
+    account.set_online(Text(localization::Literal("ÔÚÏß", language)));
+    account.set_offline(Text(localization::Literal("ÀëÏß", language)));
+    account.set_connect(Text(localization::Literal("Á¬½Ó", language)));
+    account.set_refresh(Text(localization::Literal("Ë¢ĞÂ", language)));
+  }
   auto& trust = window->global<ui::TrustStrings>();
-  trust.set_title(Text(localization::Literal("å¯ä¿¡è®¾å¤‡", language)));
-  trust.set_only(Text(localization::Literal("ä»…å…è®¸å¯ä¿¡è®¾å¤‡æ§åˆ¶", language)));
-  trust.set_manage(Text(localization::Literal("ç®¡ç†å¯ä¿¡è®¾å¤‡", language)));
-  trust.set_copy(Text(localization::Literal("å¤åˆ¶é…å¯¹ä¿¡æ¯", language)));
-  trust.set_import_title(Text(localization::Literal("æ·»åŠ å¯ä¿¡è®¾å¤‡", language)));
-  trust.set_add(Text(localization::Literal("æ·»åŠ ", language)));
-  trust.set_placeholder(Text(localization::Literal("ç²˜è´´æ§åˆ¶ç«¯çš„é…å¯¹ä¿¡æ¯", language)));
-  trust.set_confirm(Text(localization::Literal("è¯·æ ¸å¯¹æ§åˆ¶ç«¯æŒ‡çº¹ã€‚", language)));
-  trust.set_saved(Text(localization::Literal("å·²ä¿¡ä»»çš„è®¾å¤‡", language)));
-  trust.set_sharing(Text(localization::Literal("æœ¬æœºé…å¯¹ä¿¡æ¯", language)));
-  trust.set_show_fingerprint(Text(localization::Literal("æŸ¥çœ‹æŒ‡çº¹", language)));
-  trust.set_hide_fingerprint(Text(localization::Literal("æ”¶èµ·æŒ‡çº¹", language)));
-  trust.set_empty(Text(localization::Literal("æš‚æ— å¯ä¿¡è®¾å¤‡", language)));
-  trust.set_candidates(Text(localization::Literal("å¯æ·»åŠ çš„å·²è¿æ¥è®¾å¤‡", language)));
-  trust.set_trust(Text(localization::Literal("ä¿¡ä»»æ­¤è®¾å¤‡", language)));
-  trust.set_remove(Text(localization::Literal("ç§»é™¤ä¿¡ä»»", language)));
+  trust.set_title(Text(localization::Literal("¿ÉĞÅÉè±¸", language)));
+  trust.set_only(Text(localization::Literal("½öÔÊĞí¿ÉĞÅÉè±¸¿ØÖÆ", language)));
+  trust.set_manage(Text(localization::Literal("¹ÜÀí¿ÉĞÅÉè±¸", language)));
+  trust.set_copy(Text(localization::Literal("¸´ÖÆÅä¶ÔĞÅÏ¢", language)));
+  trust.set_import_title(Text(localization::Literal("Ìí¼Ó¿ÉĞÅÉè±¸", language)));
+  trust.set_add(Text(localization::Literal("Ìí¼Ó", language)));
+  trust.set_placeholder(Text(localization::Literal("Õ³Ìù¿ØÖÆ¶ËµÄÅä¶ÔĞÅÏ¢", language)));
+  trust.set_confirm(Text(localization::Literal("ÇëºË¶Ô¿ØÖÆ¶ËÖ¸ÎÆ¡£", language)));
+  trust.set_saved(Text(localization::Literal("ÒÑĞÅÈÎµÄÉè±¸", language)));
+  trust.set_sharing(Text(localization::Literal("±¾»úÅä¶ÔĞÅÏ¢", language)));
+  trust.set_show_fingerprint(Text(localization::Literal("²é¿´Ö¸ÎÆ", language)));
+  trust.set_hide_fingerprint(Text(localization::Literal("ÊÕÆğÖ¸ÎÆ", language)));
+  trust.set_empty(Text(localization::Literal("ÔİÎŞ¿ÉĞÅÉè±¸", language)));
+  trust.set_candidates(Text(localization::Literal("¿ÉÌí¼ÓµÄÒÑÁ¬½ÓÉè±¸", language)));
+  trust.set_trust(Text(localization::Literal("ĞÅÈÎ´ËÉè±¸", language)));
+  trust.set_remove(Text(localization::Literal("ÒÆ³ıĞÅÈÎ", language)));
   trust.set_close(Text(localization::message_close[language]));
   auto& feedback = window->global<ui::FeedbackStrings>();
-  feedback.set_title(Text(localization::Literal("åé¦ˆä¸å»ºè®®", language)));
-  feedback.set_github(Text(localization::Literal("å‰å¾€ GitHub åé¦ˆ", language)));
-  feedback.set_github_hint(Text(localization::Literal("æŠ¥å‘Šé—®é¢˜æˆ–æå‡ºåŠŸèƒ½å»ºè®®ã€‚", language)));
-  feedback.set_export(Text(localization::Literal("å¯¼å‡ºè¯Šæ–­æ—¥å¿—", language)));
-  feedback.set_export_hint(Text(localization::Literal("å°† CrossDeskã€MiniRTC æ—¥å¿—å’ŒåŸºæœ¬ç‰ˆæœ¬ä¿¡æ¯ä¿å­˜ä¸º ZIP æ–‡ä»¶ã€‚", language)));
-  feedback.set_exporting(Text(localization::Literal("æ­£åœ¨å¯¼å‡ºâ€¦", language)));
-  feedback.set_attachment_hint(Text(localization::Literal("è¯·åœ¨ GitHub Issue ä¸­é™„ä¸Šå¯¼å‡ºçš„ ZIP æ—¥å¿—åŒ…ï¼Œä¾¿äºæ’æŸ¥é—®é¢˜ã€‚", language)));
+  feedback.set_title(Text(localization::Literal("·´À¡Óë½¨Òé", language)));
+  feedback.set_github(Text(localization::Literal("Ç°Íù GitHub ·´À¡", language)));
+  feedback.set_github_hint(Text(localization::Literal("±¨¸æÎÊÌâ»òÌá³ö¹¦ÄÜ½¨Òé¡£", language)));
+  feedback.set_export(Text(localization::Literal("µ¼³öÕï¶ÏÈÕÖ¾", language)));
+  feedback.set_export_hint(Text(localization::Literal("½« CrossDesk¡¢MiniRTC ÈÕÖ¾ºÍ»ù±¾°æ±¾ĞÅÏ¢±£´æÎª ZIP ÎÄ¼ş¡£", language)));
+  feedback.set_exporting(Text(localization::Literal("ÕıÔÚµ¼³ö¡­", language)));
+  feedback.set_attachment_hint(Text(localization::Literal("ÇëÔÚ GitHub Issue ÖĞ¸½ÉÏµ¼³öµÄ ZIP ÈÕÖ¾°ü£¬±ãÓÚÅÅ²éÎÊÌâ¡£", language)));
   feedback.set_close(Text(localization::message_close[language]));
   auto& strings = window->global<ui::UiStrings>();
   strings.set_system_permissions(Text(localization::system_permissions[language]));
@@ -319,8 +334,8 @@ inline int ApplyStreamWindowStrings(
   strings.set_stats_connection_latency(Text(localization::connection_latency[language]));
   strings.set_stats_connection_mode(
       Text(localization::connection_mode[language]));
-  strings.set_stats_local_endpoint(Text(localization::Literal("æœ¬ç«¯åœ°å€", language)));
-  strings.set_stats_remote_endpoint(Text(localization::Literal("å¯¹ç«¯åœ°å€", language)));
+  strings.set_stats_local_endpoint(Text(localization::Literal("±¾¶ËµØÖ·", language)));
+  strings.set_stats_remote_endpoint(Text(localization::Literal("¶Ô¶ËµØÖ·", language)));
   strings.set_stats_encoder(Text(localization::remote_video_encoder[language]));
   strings.set_stats_decoder(Text(localization::local_video_decoder[language]));
   strings.set_stats_encryption(

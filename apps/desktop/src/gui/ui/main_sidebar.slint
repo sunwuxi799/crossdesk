@@ -1,0 +1,243 @@
+// CrossDesk - 主界面侧边导航栏（ToDesk 风格）
+//
+// 设计约束（避免前几轮遇到的布局递归崩溃）：
+//   - 所有尺寸为固定值或仅依赖 parent.width/height
+//   - 不使用 preferred-height 反向约束父容器
+//   - 不使用嵌套的自定义组件做尺寸传递
+
+import { WorkbenchStyle } from "workbench_controls.slint";
+import { UiSurface } from "ui_surface.slint";
+import { UiRadius } from "ui_radius.slint";
+
+// ---- 文案（C++ 按语言注入）----
+export global NavStrings {
+    in-out property <string> app-name: "CrossDesk";
+    in-out property <string> device-list: "Devices";
+    in-out property <string> remote-control: "Remote";
+    in-out property <string> file-center: "Files";
+    in-out property <string> screen-wall: "Wall";
+    in-out property <string> settings: "Settings";
+    in-out property <string> account: "Account";
+    in-out property <string> sign-out: "Sign out";
+    in-out property <string> signed-out: "Not signed in";
+}
+
+// ---- 一个导航项 ----
+component NavItem inherits Rectangle {
+    in property <string> label;
+    in property <bool> active: false;
+    // 简单图标字形（用文字代替图标，避免依赖字体资源）
+    in property <string> glyph: "";
+
+    callback activated();
+
+    height: 40px;
+    background: root.active ? #e8f0fe
+              : touch.has-hover ? #f3f6fb
+              : transparent;
+    border-radius: UiRadius.control;
+    animate background { duration: 100ms; }
+
+    // 选中指示条
+    Rectangle {
+        x: 0px;
+        y: 10px;
+        width: 3px;
+        height: 20px;
+        border-radius: 1.5px;
+        background: WorkbenchStyle.accent;
+        visible: root.active;
+    }
+
+    Text {
+        x: 16px;
+        y: 0px;
+        width: 24px;
+        height: parent.height;
+        text: root.glyph;
+        font-size: 15px;
+        color: root.active ? WorkbenchStyle.accent : WorkbenchStyle.muted;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    Text {
+        x: 48px;
+        y: 0px;
+        width: parent.width - 60px;
+        height: parent.height;
+        text: root.label;
+        font-size: 13px;
+        font-weight: root.active ? 600 : 400;
+        color: root.active ? WorkbenchStyle.accent : WorkbenchStyle.text;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.activated(); }
+    }
+}
+
+// ---- 侧边栏 ----
+export component MainSidebar inherits Rectangle {
+    in-out property <int> current-page: 0;   // 0=设备 1=远程 2=文件 3=屏幕墙 4=设置
+    in property <string> account-name: "";
+    in property <bool> signed-in: false;
+
+    callback page-selected(int);
+    callback account-clicked();
+    callback sign-out-clicked();
+
+    width: 200px;
+    background: white;
+    border-width: 0px;
+
+    // 右侧分隔线
+    Rectangle {
+        x: parent.width - 1px;
+        y: 0px;
+        width: 1px;
+        height: parent.height;
+        background: UiSurface.separator;
+    }
+
+    // ===== 顶部：应用名 =====
+    Text {
+        x: 20px;
+        y: 18px;
+        width: parent.width - 40px;
+        height: 24px;
+        text: NavStrings.app-name;
+        font-size: 15px;
+        font-weight: 700;
+        color: WorkbenchStyle.accent;
+        vertical-alignment: center;
+    }
+
+    // ===== 账号区 =====
+    Rectangle {
+        x: 12px;
+        y: 56px;
+        width: parent.width - 24px;
+        height: 64px;
+        border-radius: UiRadius.control;
+        background: account-touch.has-hover ? #f3f6fb : #fafbfd;
+
+        // 头像圆圈（首字母）
+        Rectangle {
+            x: 12px;
+            y: 12px;
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            background: WorkbenchStyle.accent;
+
+            Text {
+                x: 0px; y: 0px;
+                width: parent.width;
+                height: parent.height;
+                text: root.account-name == "" ? "?" : root.account-name;
+                font-size: 16px;
+                font-weight: 600;
+                color: white;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        // 名字
+        Text {
+            x: 60px;
+            y: 14px;
+            width: parent.width - 68px;
+            height: 20px;
+            text: root.signed-in ? root.account-name : NavStrings.signed-out;
+            font-size: 13px;
+            font-weight: 600;
+            color: root.signed-in ? WorkbenchStyle.text : WorkbenchStyle.muted;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+
+        // 状态
+        Text {
+            x: 60px;
+            y: 34px;
+            width: parent.width - 68px;
+            height: 16px;
+            text: NavStrings.account;
+            font-size: 11px;
+            color: WorkbenchStyle.muted;
+            vertical-alignment: center;
+        }
+
+        account-touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.account-clicked(); }
+        }
+    }
+
+    // ===== 导航项 =====
+    nav-devices := NavItem {
+        x: 12px;
+        y: 136px;
+        width: parent.width - 24px;
+        label: NavStrings.device-list;
+        glyph: "▤";
+        active: root.current-page == 0;
+        activated => { root.page-selected(0); }
+    }
+
+    nav-remote := NavItem {
+        x: 12px;
+        y: 180px;
+        width: parent.width - 24px;
+        label: NavStrings.remote-control;
+        glyph: "▶";
+        active: root.current-page == 1;
+        activated => { root.page-selected(1); }
+    }
+
+    nav-files := NavItem {
+        x: 12px;
+        y: 224px;
+        width: parent.width - 24px;
+        label: NavStrings.file-center;
+        glyph: "▣";
+        active: root.current-page == 2;
+        activated => { root.page-selected(2); }
+    }
+
+    nav-wall := NavItem {
+        x: 12px;
+        y: 268px;
+        width: parent.width - 24px;
+        label: NavStrings.screen-wall;
+        glyph: "▦";
+        active: root.current-page == 3;
+        activated => { root.page-selected(3); }
+    }
+
+    nav-settings := NavItem {
+        x: 12px;
+        y: 312px;
+        width: parent.width - 24px;
+        label: NavStrings.settings;
+        glyph: "⚙";
+        active: root.current-page == 4;
+        activated => { root.page-selected(4); }
+    }
+
+    // ===== 底部：退出登录 =====
+    signout-item := NavItem {
+        x: 12px;
+        y: parent.height - 56px;
+        width: parent.width - 24px;
+        label: NavStrings.sign-out;
+        glyph: "⏻";
+        visible: root.signed-in;
+        activated => { root.sign-out-clicked(); }
+    }
+}

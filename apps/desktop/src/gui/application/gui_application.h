@@ -61,6 +61,9 @@ private:
   void BindMainCallbacks(bool gallery_window = false);
   // [USER-ACCOUNT] mirror account state into the Slint windows.
   void SyncUserAccountToUi();
+  // [USER-ACCOUNT] consecutive UI sync failures; caps retries.
+  static constexpr int kUserSyncMaxFailures = 8;
+  int user_sync_failures_ = 0;
   void BindTrustedDeviceCallbacks(bool gallery_window = false);
   void BindStreamCallbacks(StreamView& view);
   void Tick();

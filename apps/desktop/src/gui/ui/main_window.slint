@@ -22,6 +22,8 @@ import { RoundedLineEdit } from "rounded_line_edit.slint";
 // [USER-ACCOUNT] import
 import { UserAccountPanel, UserAccountStrings, UserDeviceEntry,
          UserLoginGate } from "user_account_panel.slint";
+import { MainSidebar, NavStrings } from "main_sidebar.slint";
+import { DevicePage, DeviceItem, DevicePageStrings } from "device_page.slint";
 import { AnnouncementItem, MessagePanel, MessageStrings } from "message_panel.slint";
 import { FontAwesomeIcons, IconButton, CompactComboBox, ImGuiCheckBox, CompactButton, PrimaryButton, SecondaryButton, ToggleSwitch, SectionTitle, DialogSurface, ImGuiFontStyle, ControlStyle } from "common.slint";
 import "../assets/fonts/message_spacing.ttf";
@@ -856,6 +858,20 @@ export component MainWindow inherits Window {
     in-out property <bool> user-signing-in: false;
     in-out property <bool> user-account-open: false;
     in-out property <bool> user-login-gate-open: false;
+    // [NAV] 导航布局开关与当前页
+    in-out property <bool> nav-enabled: false;
+    in-out property <int> nav-page: 0;
+    in-out property <string> nav-account-name: "";
+    in-out property <string> device-search: "";
+    in property <[DeviceItem]> nav-devices;
+    callback nav-page-selected(int);
+    callback nav-account-clicked();
+    callback nav-signout();
+    callback nav-connect(string);
+    callback nav-new-group();
+    callback nav-add-device();
+    callback nav-alias-edit(string, string);
+    callback nav-search(string);
     in-out property <bool> user-remember-password: true;
     in-out property <bool> user-connecting: false;
     in-out property <string> user-display-name: "";
@@ -1333,6 +1349,58 @@ export component MainWindow inherits Window {
             }
         }
 
+
+        // [NAV] 侧边栏 + 内容区（启用时覆盖原布局）
+        nav-layout-layer := Rectangle {
+            x: 0px; y: parent.height - self.height;
+            width: parent.width;
+            height: parent.height;
+            z: 50;
+            visible: root.nav-enabled;
+            background: WorkbenchStyle.canvas;
+
+            MainSidebar {
+                x: 0px; y: 0px;
+                width: 200px;
+                height: parent.height;
+                current-page: root.nav-page;
+                account-name: root.nav-account-name;
+                signed-in: root.user-signed-in;
+                page-selected(p) => { root.nav-page-selected(p); }
+                account-clicked => { root.nav-account-clicked(); }
+                sign-out-clicked => { root.nav-signout(); }
+            }
+
+            DevicePage {
+                x: 200px; y: 0px;
+                width: parent.width - 200px;
+                height: parent.height;
+                visible: root.nav-page == 0;
+                search-text <=> root.device-search;
+                devices: root.nav-devices;
+                connect-requested(id) => { root.nav-connect(id); }
+                new-group-requested => { root.nav-new-group(); }
+                add-device-requested => { root.nav-add-device(); }
+                alias-edit-requested(id, name) => { root.nav-alias-edit(id, name); }
+                search-changed(t) => { root.nav-search(t); }
+            }
+
+            // 其他页占位
+            if root.nav-page != 0 : Text {
+                x: 200px;
+                y: (parent.height - self.height) / 2;
+                width: parent.width - 200px;
+                height: 24px;
+                text: root.nav-page == 1 ? NavStrings.remote-control
+                    : root.nav-page == 2 ? NavStrings.file-center
+                    : root.nav-page == 3 ? NavStrings.screen-wall
+                    : NavStrings.settings;
+                font-size: 15px;
+                color: WorkbenchStyle.muted;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
 
         // [USER-ACCOUNT] startup login gate covers the whole window
         login-gate-instance := UserLoginGate {

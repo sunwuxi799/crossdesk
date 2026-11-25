@@ -64,6 +64,11 @@ private:
   // [USER-ACCOUNT] consecutive UI sync failures; caps retries.
   static constexpr int kUserSyncMaxFailures = 8;
   int user_sync_failures_ = 0;
+  // [NAV] 主界面导航状态
+  bool nav_enabled_ = true;
+  int nav_page_ = 0;
+  std::string nav_account_name_;
+  std::string device_search_;
   void BindTrustedDeviceCallbacks(bool gallery_window = false);
   void BindStreamCallbacks(StreamView& view);
   void Tick();

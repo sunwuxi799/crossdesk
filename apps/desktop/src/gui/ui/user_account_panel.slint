@@ -117,7 +117,7 @@ export component UserLoginGate inherits Rectangle {
     // Centered card
     card := FlatSurface {
         width: min(400px, parent.width - 80px);
-        height: content.preferred-height;
+        height: 400px;
         x: (parent.width - self.width) / 2;
         y: max(60px, (parent.height - self.height) / 2 - 40px);
         background: white;
@@ -125,6 +125,8 @@ export component UserLoginGate inherits Rectangle {
         border-radius: UiRadius.surface;
 
         content := VerticalLayout {
+            width: parent.width;
+            height: parent.height;
             padding: 28px;
             spacing: 16px;
 
@@ -214,7 +216,7 @@ export component UserLoginGate inherits Rectangle {
 
             // Submit
             SettingsButton {
-                width: parent.width;
+                width: card.width - 56px;
                 height: 38px;
                 primary: true;
                 text-size: 13px;

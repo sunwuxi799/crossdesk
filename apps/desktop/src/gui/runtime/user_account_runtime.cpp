@@ -6,6 +6,8 @@
  * without inverting the ownership direction.
  */
 
+#include <algorithm>
+#include <cctype>
 #include <memory>
 #include <string>
 #include <utility>
@@ -102,6 +104,50 @@ bool GuiRuntime::TryRestoreAccountSession() {
   if (!user_bridge_->RequestSignIn(username, password)) return false;
   if (user_account_) user_account_->RememberUsername(username);
   return true;
+}
+
+
+// [NAV] 把账号分组展平成带分组名的设备行，并按搜索词过滤。
+std::vector<GuiRuntime::DeviceUiRow> GuiRuntime::DeviceRows(
+    const std::string& filter) const {
+  std::vector<DeviceUiRow> rows;
+  if (!user_account_) return rows;
+
+  std::string needle = filter;
+  // 简单的大小写不敏感（ASCII）
+  std::transform(needle.begin(), needle.end(), needle.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+
+  for (const auto& group : user_account_->Groups()) {
+    for (const auto& device : group.devices) {
+      DeviceUiRow row;
+      row.device_id = device.device_id;
+      row.alias = device.alias;
+      row.group_id = group.id;
+      row.group_name = group.name;
+      row.online = device.online;
+      row.has_password = device.has_saved_password;
+
+      if (!needle.empty()) {
+        std::string hay = device.alias + " " + device.device_id + " " + group.name;
+        std::transform(hay.begin(), hay.end(), hay.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        if (hay.find(needle) == std::string::npos) continue;
+      }
+      rows.push_back(std::move(row));
+    }
+  }
+  return rows;
+}
+
+// [NAV] 切换分组折叠状态。
+void GuiRuntime::ToggleGroupCollapsed(int64_t group_id) {
+  auto it = std::find(collapsed_groups_.begin(), collapsed_groups_.end(), group_id);
+  if (it == collapsed_groups_.end()) {
+    collapsed_groups_.push_back(group_id);
+  } else {
+    collapsed_groups_.erase(it);
+  }
 }
 
 }  // namespace crossdesk

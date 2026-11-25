@@ -41,6 +41,21 @@ class UserSignalBridge {
   // 请求刷新设备分组
   bool RequestRefreshDevices();
 
+  // ---- 自助操作（第 3 步新增） ----
+  // 创建自己的分组
+  bool RequestCreateGroup(const std::string& name,
+                          const std::string& description);
+  // 向自己的分组添加设备
+  bool RequestAddDevice(int64_t group_id, const std::string& device_id,
+                        const std::string& alias);
+  // 保存连接密码到云端
+  bool RequestSavePassword(const std::string& device_id,
+                           const std::string& password, bool remember);
+  // 读取云端保存的连接密码
+  bool RequestGetPassword(const std::string& device_id);
+  // 修改设备别名
+  bool RequestSetAlias(const std::string& device_id, const std::string& alias);
+
   // 已登录时带 token 的 join 消息增强。
   // 若未登录则原样返回 input。
   nlohmann::json DecorateJoin(nlohmann::json input) const;

@@ -132,6 +132,22 @@ class GuiRuntime : protected gui_detail::GuiState {
     std::string alias;
     bool online = false;
   };
+
+  // [NAV] 带分组信息的设备行，供主界面设备页使用
+  struct DeviceUiRow {
+    std::string device_id;
+    std::string alias;
+    int64_t group_id = 0;
+    std::string group_name;
+    bool online = false;
+    bool has_password = false;
+  };
+  std::vector<DeviceUiRow> DeviceRows(const std::string& filter) const;
+  // 按分组折叠状态过滤
+  std::vector<int64_t> CollapsedGroups() const { return collapsed_groups_; }
+  void ToggleGroupCollapsed(int64_t group_id);
+  void SetDeviceSearch(const std::string& text) { device_search_ = text; }
+  const std::string& device_search() const { return device_search_; }
   void InitializeUserAccount();
   void RefreshUserDeviceGroups();
   std::vector<UserDeviceSnapshot> UserDevices() const;
@@ -166,6 +182,8 @@ class GuiRuntime : protected gui_detail::GuiState {
   // Set by GuiApplication; keeps Slint access on the owning layer.
   std::function<void()> user_account_ui_hook_;
   bool remember_password_ = true;
+  std::vector<int64_t> collapsed_groups_;
+  std::string device_search_;
   bool restore_attempted_ = false;
   std::string pending_account_password_;
   struct ControllerTrust {

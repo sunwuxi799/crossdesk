@@ -1269,11 +1269,6 @@ int GuiApplication::Run() {
   }
 #endif
   InitializeTrustedDevices(path_manager_->GetConfigPath() / "trusted-devices");
-  // [USER-ACCOUNT] employee account state machine
-  InitializeUserAccount();
-  SetUserAccountUiHook([this]() { SyncUserAccountToUi(); });
-  // Try a remembered session; the gate stays visible until the reply arrives.
-  restore_attempted_ = TryRestoreAccountSession();
 #ifdef __APPLE__
   StartMacPermissionMigration(false);
 #endif
@@ -1470,6 +1465,12 @@ void GuiApplication::InitializeUi() {
   slint::set_xdg_app_id("crossdesk");
 #endif
   ui_ = std::make_unique<SlintUi>();
+  // [USER-ACCOUNT] employee account state machine.
+  // Must run after ui_ exists: the state callback touches Slint windows.
+  InitializeUserAccount();
+  SetUserAccountUiHook([this]() { SyncUserAccountToUi(); });
+  // Try a remembered session; the gate stays visible until the reply arrives.
+  restore_attempted_ = TryRestoreAccountSession();
   for (const auto& window : {ui_->main, ui_->wall})
     window->set_ip_direct_enabled(config_center_->IsIpDirectEnabled());
   ui_->main->set_lan_mode(config_center_->GetConnectionMode() ==

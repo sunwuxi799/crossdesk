@@ -66,6 +66,8 @@ private:
   int user_sync_failures_ = 0;
   // [NAV] 主界面导航状态
   bool nav_enabled_ = true;
+  // [NAV] 用户是否主动要求打开登录窗（点击头像触发）
+  bool login_gate_requested_ = false;
   int nav_page_ = 0;
   std::string nav_account_name_;
   std::string device_search_;

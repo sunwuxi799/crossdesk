@@ -29,6 +29,38 @@ bool UserSignalBridge::RequestSignIn(const std::string& username,
   return true;
 }
 
+bool UserSignalBridge::RequestCreateGroup(const std::string& name,
+                                           const std::string& description) {
+  if (!account_ || !sender_ || !account_->IsSignedIn()) return false;
+  return sender_(account_->BuildCreateGroupRequest(name, description));
+}
+
+bool UserSignalBridge::RequestAddDevice(int64_t group_id,
+                                        const std::string& device_id,
+                                        const std::string& alias) {
+  if (!account_ || !sender_ || !account_->IsSignedIn()) return false;
+  return sender_(account_->BuildAddDeviceRequest(group_id, device_id, alias));
+}
+
+bool UserSignalBridge::RequestSavePassword(const std::string& device_id,
+                                           const std::string& password,
+                                           bool remember) {
+  if (!account_ || !sender_ || !account_->IsSignedIn()) return false;
+  return sender_(account_->BuildSavePasswordRequest(device_id, password,
+                                                    remember));
+}
+
+bool UserSignalBridge::RequestGetPassword(const std::string& device_id) {
+  if (!account_ || !sender_ || !account_->IsSignedIn()) return false;
+  return sender_(account_->BuildGetPasswordRequest(device_id));
+}
+
+bool UserSignalBridge::RequestSetAlias(const std::string& device_id,
+                                       const std::string& alias) {
+  if (!account_ || !sender_ || !account_->IsSignedIn()) return false;
+  return sender_(account_->BuildSetAliasRequest(device_id, alias));
+}
+
 bool UserSignalBridge::RequestRefreshDevices() {
   if (!account_ || !sender_) return false;
   if (!account_->IsSignedIn()) return false;
@@ -56,6 +88,11 @@ bool UserSignalBridge::HandleIncoming(const nlohmann::json& message) {
   if (type == "device_groups") {
     account_->ApplyDeviceGroups(message);
     return true;
+  }
+
+  // 自助操作结果（create_my_group_result 等）
+  if (type.size() > 7 && type.compare(type.size() - 7, 7, "_result") == 0) {
+    if (account_->ApplySelfServiceResult(message)) return true;
   }
 
   return false;

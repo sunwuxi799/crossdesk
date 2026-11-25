@@ -859,7 +859,7 @@ export component MainWindow inherits Window {
     in-out property <bool> user-account-open: false;
     in-out property <bool> user-login-gate-open: false;
     // [NAV] 导航布局开关与当前页
-    in-out property <bool> nav-enabled: false;
+    in-out property <bool> nav-enabled: true;
     in-out property <int> nav-page: 0;
     in-out property <string> nav-account-name: "";
     in-out property <string> device-search: "";
@@ -1245,11 +1245,13 @@ export component MainWindow inherits Window {
     }
 
     content-layer := Rectangle {
-        x: 0px;
+        x: root.nav-enabled ? 200px : 0px;
         y: root.titlebar-height;
-        width: root.width;
+        width: root.nav-enabled ? root.width - 200px : root.width;
         height: root.height - self.y;
         clip: true;
+        // 导航模式下，原主界面作为「首页」选项卡（nav-page == 0）
+        visible: !root.nav-enabled || root.nav-page == 0;
 
     Rectangle {
         width: parent.width;
@@ -1375,7 +1377,7 @@ export component MainWindow inherits Window {
                 x: 200px; y: 0px;
                 width: parent.width - 200px;
                 height: parent.height;
-                visible: root.nav-page == 0;
+                visible: root.nav-page == 1;
                 search-text <=> root.device-search;
                 devices: root.nav-devices;
                 connect-requested(id) => { root.nav-connect(id); }
@@ -1386,14 +1388,14 @@ export component MainWindow inherits Window {
             }
 
             // 其他页占位
-            if root.nav-page != 0 : Text {
+            if root.nav-page >= 2 : Text {
                 x: 200px;
                 y: (parent.height - self.height) / 2;
                 width: parent.width - 200px;
                 height: 24px;
-                text: root.nav-page == 1 ? NavStrings.remote-control
-                    : root.nav-page == 2 ? NavStrings.file-center
-                    : root.nav-page == 3 ? NavStrings.screen-wall
+                text: root.nav-page == 2 ? NavStrings.remote-control
+                    : root.nav-page == 3 ? NavStrings.file-center
+                    : root.nav-page == 4 ? NavStrings.screen-wall
                     : NavStrings.settings;
                 font-size: 15px;
                 color: WorkbenchStyle.muted;

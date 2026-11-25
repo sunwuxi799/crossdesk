@@ -1928,21 +1928,24 @@ void GuiApplication::BindMainCallbacks(bool gallery_window) {
 
   // [NAV] 设备页回调
   main->on_nav_page_selected([this](int page) {
-    nav_page_ = page;
-    SyncUserAccountToUi();
+    // 回调内只记录状态，UI 写入投递到事件循环，避免 Slint 属性重入。
+    slint::invoke_from_event_loop([this, page]() {
+      nav_page_ = page;
+      SyncUserAccountToUi();
+    });
   });
   main->on_nav_account_clicked([this]() {
-    if (!ui_) return;
-    auto* w = ui_->Window(false).operator->();
-    if (!w) return;
-    if (user_account_ && user_account_->IsSignedIn()) {
-      // 已登录：打开账号面板（可退出登录）
-      w->set_user_account_open(true);
-    } else {
-      // 未登录：弹出登录窗
-      login_gate_requested_ = true;
-      w->set_user_login_gate_open(true);
-    }
+    slint::invoke_from_event_loop([this]() {
+      if (!ui_) return;
+      auto* w = ui_->Window(false).operator->();
+      if (!w) return;
+      if (user_account_ && user_account_->IsSignedIn()) {
+        w->set_user_account_open(true);
+      } else {
+        login_gate_requested_ = true;
+        w->set_user_login_gate_open(true);
+      }
+    });
   });
   main->on_nav_signout([this]() {
     ClearPersistedCredential();
@@ -1976,9 +1979,18 @@ void GuiApplication::BindMainCallbacks(bool gallery_window) {
       if (user_bridge_) user_bridge_->RequestSetAlias(device, alias);
     });
   });
+  main->on_nav_toggle_group([this](int group_id) {
+    slint::invoke_from_event_loop([this, group_id]() {
+      ToggleGroupCollapsed(group_id);
+      SyncUserAccountToUi();
+    });
+  });
   main->on_nav_search([this](slint::SharedString text) {
-    SetDeviceSearch(std::string(text.data(), text.size()));
-    SyncUserAccountToUi();
+    const std::string needle(text.data(), text.size());
+    slint::invoke_from_event_loop([this, needle]() {
+      SetDeviceSearch(needle);
+      SyncUserAccountToUi();
+    });
   });
 
 

@@ -1798,7 +1798,9 @@ void GuiApplication::SyncUserAccountToUi() {
     const std::string error = account->LastError();
 
     // Gate stays visible until a session exists; hidden while a restore runs.
-    const bool gate_open = !signed_in && !signing_in && !restore_attempted_;
+    // [NAV] 登录窗口改为点击头像触发，不再启动时自动弹出。
+    // 仅当用户主动打开（user_login_gate_open 已为 true）时保持显示。
+    const bool gate_open = login_gate_requested_;
     const bool remember = remember_password();
     const std::string display_text(display);
     const std::string error_text(error);
@@ -1875,6 +1877,7 @@ void GuiApplication::BindMainCallbacks(bool gallery_window) {
   // Only read inputs here; defer every UI mutation to the event loop.
   main->on_user_sign_in([this, main, gallery_window]() {
     if (!user_account_ || !user_bridge_) return;
+    // 提交后关闭门页（失败时会由 sync 重新打开）
     const auto user_text = main->get_user_input_username();
     const auto password_text = main->get_user_input_password();
     const std::string user(user_text.data(), user_text.size());
@@ -1889,6 +1892,9 @@ void GuiApplication::BindMainCallbacks(bool gallery_window) {
           SetRememberPassword(remember);
           pending_account_password_ = password;
           w->set_user_input_password(slint::SharedString());
+          if (user_account_ && user_account_->IsSignedIn()) {
+            login_gate_requested_ = false;
+          }
           if (user_bridge_ && !user_bridge_->RequestSignIn(user, password)) {
             pending_account_password_.clear();
           }
@@ -1926,7 +1932,17 @@ void GuiApplication::BindMainCallbacks(bool gallery_window) {
     SyncUserAccountToUi();
   });
   main->on_nav_account_clicked([this]() {
-    if (ui_) ui_->Window(false).operator->()->set_user_account_open(true);
+    if (!ui_) return;
+    auto* w = ui_->Window(false).operator->();
+    if (!w) return;
+    if (user_account_ && user_account_->IsSignedIn()) {
+      // 已登录：打开账号面板（可退出登录）
+      w->set_user_account_open(true);
+    } else {
+      // 未登录：弹出登录窗
+      login_gate_requested_ = true;
+      w->set_user_login_gate_open(true);
+    }
   });
   main->on_nav_signout([this]() {
     ClearPersistedCredential();

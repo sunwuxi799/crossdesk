@@ -1,0 +1,318 @@
+// CrossDesk - 设备列表页（ToDesk 风格）
+//
+// 功能：搜索筛选、分组折叠、设备卡片、连接按钮、新建分组/添加设备
+//
+// 布局约束：全部使用固定几何或 parent.width 派生，不作反向尺寸传递。
+
+import { WorkbenchStyle } from "workbench_controls.slint";
+import { UiSurface } from "ui_surface.slint";
+import { UiRadius } from "ui_radius.slint";
+import { SettingsButton } from "settings_controls.slint";
+import { RoundedLineEdit } from "rounded_line_edit.slint";
+
+// ---- 文案 ----
+export global DevicePageStrings {
+    in-out property <string> search-placeholder: "Search devices";
+    in-out property <string> my-devices: "My devices";
+    in-out property <string> new-group: "New group";
+    in-out property <string> add-device: "Add device";
+    in-out property <string> no-devices: "No devices yet";
+    in-out property <string> no-match: "No matching devices";
+    in-out property <string> online: "Online";
+    in-out property <string> offline: "Offline";
+    in-out property <string> connect: "Connect";
+    in-out property <string> has-password: "Password saved";
+    in-out property <string> group-device-count: "devices";
+}
+
+// ---- 数据模型 ----
+export struct DeviceItem {
+    device-id: string,
+    alias: string,
+    group-id: int,
+    group-name: string,
+    online: bool,
+    has-password: bool,
+}
+
+// ---- 单台设备行 ----
+component DeviceRow inherits Rectangle {
+    in property <DeviceItem> device;
+
+    callback connect-requested(string);
+    callback alias-edit-requested(string, string);
+
+    height: 56px;
+    background: row-touch.has-hover ? #f7f9fc : transparent;
+    border-radius: UiRadius.control;
+
+    // 在线状态点
+    Rectangle {
+        x: 8px;
+        y: 24px;
+        width: 8px;
+        height: 8px;
+        border-radius: 4px;
+        background: root.device.online ? #1a7f37 : #cbd5e1;
+    }
+
+    // 名称
+    Text {
+        x: 26px;
+        y: 10px;
+        width: parent.width - 200px;
+        height: 20px;
+        text: root.device.alias != "" ? root.device.alias : root.device.device-id;
+        font-size: 13px;
+        font-weight: 600;
+        color: WorkbenchStyle.text;
+        overflow: elide;
+        vertical-alignment: center;
+    }
+
+    // ID + 状态 + 密码标记
+    Text {
+        x: 26px;
+        y: 30px;
+        width: parent.width - 200px;
+        height: 16px;
+        text: root.device.device-id + "  ·  "
+            + (root.device.online ? DevicePageStrings.online : DevicePageStrings.offline)
+            + (root.device.has-password ? "  ·  " + DevicePageStrings.has-password : "");
+        font-size: 11px;
+        color: WorkbenchStyle.muted;
+        overflow: elide;
+        vertical-alignment: center;
+    }
+
+    // 连接按钮
+    SettingsButton {
+        x: parent.width - 108px;
+        y: 14px;
+        width: 96px;
+        height: 30px;
+        primary: true;
+        text-size: 12px;
+        text: DevicePageStrings.connect;
+        enabled: root.device.online;
+        clicked => { root.connect-requested(root.device.device-id); }
+    }
+
+    row-touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.alias-edit-requested(root.device.device-id, root.device.alias);
+        }
+    }
+}
+
+// ---- 分组块 ----
+component GroupBlock inherits Rectangle {
+    in property <string> group-name;
+    in property <int> group-id;
+    in property <int> device-count;
+    in-out property <bool> expanded: true;
+    in property <[DeviceItem]> devices;
+
+    callback toggle();
+    callback connect-requested(string);
+    callback alias-edit-requested(string, string);
+
+    // 头 36px + 展开后每台 56px
+    height: 36px + (root.expanded ? root.device-count * 56px : 0px);
+
+    // 分组头
+    Rectangle {
+        x: 0px; y: 0px;
+        width: parent.width;
+        height: 36px;
+        background: header-touch.has-hover ? #f7f9fc : transparent;
+        border-radius: UiRadius.control;
+
+        // 折叠箭头
+        Text {
+            x: 4px;
+            y: 0px;
+            width: 16px;
+            height: 36px;
+            text: root.expanded ? "▾" : "▸";
+            font-size: 11px;
+            color: WorkbenchStyle.muted;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        // 分组名
+        Text {
+            x: 24px;
+            y: 0px;
+            width: parent.width - 120px;
+            height: 36px;
+            text: root.group-name;
+            font-size: 12px;
+            font-weight: 600;
+            color: WorkbenchStyle.text;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+
+        // 设备数
+        Text {
+            x: parent.width - 88px;
+            y: 0px;
+            width: 80px;
+            height: 36px;
+            text: root.device-count + " " + DevicePageStrings.group-device-count;
+            font-size: 11px;
+            color: WorkbenchStyle.muted;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+        }
+
+        header-touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.toggle(); }
+        }
+    }
+
+    // 设备行（展开时）
+    if root.expanded : VerticalLayout {
+        y: 36px;
+        x: 8px;
+        width: parent.width - 8px;
+        height: root.device-count * 56px;
+        spacing: 0px;
+
+        for dev[i] in root.devices : DeviceRow {
+            device: dev;
+            connect-requested(id) => { root.connect-requested(id); }
+            alias-edit-requested(id, name) => {
+                root.alias-edit-requested(id, name);
+            }
+        }
+    }
+}
+
+// ---- 设备页 ----
+export component DevicePage inherits Rectangle {
+    in-out property <string> search-text: "";
+    in property <[DeviceItem]> devices: [];
+    // 每个分组的展开状态由 C++ 保持，这里用 group-id 列表表示折叠的组
+    in-out property <[int]> collapsed-groups: [];
+
+    callback connect-requested(string);
+    callback new-group-requested();
+    callback add-device-requested();
+    callback alias-edit-requested(string, string);
+    callback search-changed(string);
+    callback toggle-group(int);
+
+    background: WorkbenchStyle.canvas;
+
+    // ===== 顶部工具栏 =====
+    Rectangle {
+        x: 0px; y: 0px;
+        width: parent.width;
+        height: 64px;
+        background: transparent;
+
+        // 标题
+        Text {
+            x: 28px;
+            y: 18px;
+            width: 160px;
+            height: 28px;
+            text: DevicePageStrings.my-devices;
+            font-size: 17px;
+            font-weight: 700;
+            color: WorkbenchStyle.text;
+            vertical-alignment: center;
+        }
+
+        // 搜索框
+        RoundedLineEdit {
+            x: parent.width - 420px;
+            y: 16px;
+            width: 200px;
+            height: 32px;
+            text <=> root.search-text;
+            placeholder-text: DevicePageStrings.search-placeholder;
+            edited => { root.search-changed(root.search-text); }
+        }
+
+        // 新建分组
+        SettingsButton {
+            x: parent.width - 208px;
+            y: 16px;
+            width: 92px;
+            height: 32px;
+            text-size: 12px;
+            quiet: true;
+            text: DevicePageStrings.new-group;
+            clicked => { root.new-group-requested(); }
+        }
+
+        // 添加设备
+        SettingsButton {
+            x: parent.width - 108px;
+            y: 16px;
+            width: 96px;
+            height: 32px;
+            text-size: 12px;
+            primary: true;
+            text: DevicePageStrings.add-device;
+            clicked => { root.add-device-requested(); }
+        }
+    }
+
+    // ===== 设备列表（滚动）=====
+    Rectangle {
+        x: 0px;
+        y: 64px;
+        width: parent.width;
+        height: parent.height - 64px;
+        background: transparent;
+        clip: true;
+
+        // 空状态
+        if root.devices.length == 0 : Text {
+            x: 0px;
+            y: 80px;
+            width: parent.width;
+            height: 24px;
+            text: root.search-text == ""
+                ? DevicePageStrings.no-devices
+                : DevicePageStrings.no-match;
+            font-size: 13px;
+            color: WorkbenchStyle.muted;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        // 分组列表
+        if root.devices.length > 0 : Flickable {
+            x: 0px; y: 0px;
+            width: parent.width;
+            height: parent.height;
+            viewport-height: content.preferred-height;
+            viewport-width: self.width;
+
+            content := VerticalLayout {
+                x: 16px;
+                y: 0px;
+                width: parent.width - 32px;
+                spacing: 4px;
+
+                // 按分组迭代；每个组内的设备已由 C++ 排好序
+                for dev[i] in root.devices : DeviceRow {
+                    device: dev;
+                    connect-requested(id) => { root.connect-requested(id); }
+                    alias-edit-requested(id, name) => {
+                        root.alias-edit-requested(id, name);
+                    }
+                }
+            }
+        }
+    }
+
+}

@@ -372,12 +372,13 @@ export component MainWindow inherits Window {
     title: root.window-title;
     out property <string> window-title: root.gallery-mode ? "CrossDesk " + GalleryStrings.texts[54] : "CrossDesk";
     icon: @image-url("../../../resources/linux/crossdesk_256x256.png");
-    preferred-width: root.minimum-window-width;
-    preferred-height: root.minimum-window-height;
-    min-width: root.minimum-window-width;
-    max-width: root.gallery-mode ? 16384px : root.minimum-window-width;
-    min-height: root.minimum-window-height;
-    max-height: root.gallery-mode ? 16384px : root.minimum-window-height;
+    // 导航布局需要更宽的窗口；原紧凑模式保持原有固定尺寸。
+    preferred-width: root.window-preferred-width;
+    preferred-height: root.window-preferred-height;
+    min-width: root.window-min-width;
+    max-width: root.window-max-width;
+    min-height: root.window-min-height;
+    max-height: root.window-max-height;
     no-frame: root.custom-titlebar;
     background: root.wayland-titlebar ? transparent : white;
     default-font-size: ImGuiFontStyle.base;
@@ -483,6 +484,19 @@ export component MainWindow inherits Window {
     out property <length> minimum-window-width: 640px;
     out property <length> minimum-window-height:
         (root.gallery-mode ? 448px : 472px) + root.titlebar-height;
+    // 尺寸策略：导航模式允许自由放大；原紧凑模式保持固定。
+    out property <length> window-min-width:
+        root.nav-enabled ? 960px : root.minimum-window-width;
+    out property <length> window-min-height:
+        root.nav-enabled ? 640px : root.minimum-window-height;
+    out property <length> window-max-width:
+        (root.gallery-mode || root.nav-enabled) ? 16384px : root.minimum-window-width;
+    out property <length> window-max-height:
+        (root.gallery-mode || root.nav-enabled) ? 16384px : root.minimum-window-height;
+    out property <length> window-preferred-width:
+        root.nav-enabled ? 1120px : root.minimum-window-width;
+    out property <length> window-preferred-height:
+        root.nav-enabled ? 720px : root.minimum-window-height;
     private property <length> wayland-corner-radius: 12px;
     in property <[ControllerEntry]> controllers;
     in-out property <int> selected-controller: 0;

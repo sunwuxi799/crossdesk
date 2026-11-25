@@ -1848,37 +1848,55 @@ void GuiApplication::BindMainCallbacks(bool gallery_window) {
 
   // [USER-ACCOUNT] Bind the account panel callbacks.
   // `main` is already the raw MainWindow* for this window.
-  main->on_user_sign_in([this, main]() {
+  // [USER-ACCOUNT] Callbacks must not write Slint properties synchronously.
+  // Re-entering the property system from inside a Slint handler trips the
+  // Control Flow Guard check in release builds (int 29h, FAST_FAIL = 7).
+  // Only read inputs here; defer every UI mutation to the event loop.
+  main->on_user_sign_in([this, main, gallery_window]() {
     if (!user_account_ || !user_bridge_) return;
     const auto user_text = main->get_user_input_username();
     const auto password_text = main->get_user_input_password();
     const std::string user(user_text.data(), user_text.size());
     const std::string password(password_text.data(), password_text.size());
-    // Remember the opt-in before clearing the field.
-    SetRememberPassword(main->get_user_remember_password());
-    pending_account_password_ = password;
-    main->set_user_input_password(slint::SharedString(""));
-    if (!user_bridge_->RequestSignIn(user, password)) {
-      pending_account_password_.clear();
-      SyncUserAccountToUi();
-    } else {
-      SyncUserAccountToUi();
-    }
+    const bool remember = main->get_user_remember_password();
+
+    slint::invoke_from_event_loop(
+        [this, gallery_window, user, password, remember]() {
+          if (!ui_) return;
+          auto* w = ui_->Window(gallery_window).operator->();
+          if (!w) return;
+          SetRememberPassword(remember);
+          pending_account_password_ = password;
+          w->set_user_input_password(slint::SharedString());
+          if (user_bridge_ && !user_bridge_->RequestSignIn(user, password)) {
+            pending_account_password_.clear();
+          }
+          SyncUserAccountToUi();
+        });
   });
-  main->on_user_sign_out([this]() {
+
+  main->on_user_sign_out([this, gallery_window]() {
     if (!user_account_) return;
-    // Explicit sign-out forgets the stored credential.
-    ClearPersistedCredential();
-    pending_account_password_.clear();
-    user_account_->SignOut();
-    SyncUserAccountToUi();
+    slint::invoke_from_event_loop([this, gallery_window]() {
+      if (!ui_ || !user_account_) return;
+      ClearPersistedCredential();
+      pending_account_password_.clear();
+      user_account_->SignOut();
+      SyncUserAccountToUi();
+    });
   });
-  main->on_user_refresh_devices([this]() { RefreshUserDeviceGroups(); });
+
+  main->on_user_refresh_devices([this]() {
+    slint::invoke_from_event_loop([this]() { RefreshUserDeviceGroups(); });
+  });
+
   main->on_user_connect_device([this](slint::SharedString id) {
     if (!user_account_) return;
     const std::string device(id.data(), id.size());
     if (!user_account_->CanAccess(device)) return;
-    ConnectTo(device, nullptr, false, true, false);
+    slint::invoke_from_event_loop([this, device]() {
+      ConnectTo(device, nullptr, false, true, false);
+    });
   });
 
   main->on_gallery_pointer([this](slint::PointerEventButton button,

@@ -1816,6 +1816,27 @@ void GuiApplication::SyncUserAccountToUi() {
         window->set_user_error_text(slint::SharedString(error_text));
         window->set_user_login_gate_open(gate_open);
         window->set_user_remember_password(remember);
+        // [NAV] 导航布局与设备页（仅主窗口）
+        if (nav_enabled_ && slot == 0) {
+          std::vector<ui::DeviceItem> nav_rows;
+          for (const auto& r : DeviceRows(device_search())) {
+            ui::DeviceItem item{};
+            item.device_id = slint::SharedString(r.device_id);
+            item.alias = slint::SharedString(r.alias);
+            item.group_id = static_cast<int>(r.group_id);
+            item.group_name = slint::SharedString(r.group_name);
+            item.online = r.online;
+            item.has_password = r.has_password;
+            nav_rows.push_back(std::move(item));
+          }
+          auto nav_model =
+              std::make_shared<slint::VectorModel<ui::DeviceItem>>(nav_rows);
+          window->set_nav_enabled(true);
+          window->set_nav_page(nav_page_);
+          window->set_nav_account_name(slint::SharedString(nav_account_name_));
+          window->set_nav_devices(nav_model);
+          window->set_device_search(slint::SharedString(device_search()));
+        }
       } catch (const std::exception& e) {
         LOG_WARN("Account UI sync failed for window {}: {}",
                  slot == 1 ? "wall" : "main", e.what());
@@ -1898,6 +1919,52 @@ void GuiApplication::BindMainCallbacks(bool gallery_window) {
       ConnectTo(device, nullptr, false, true, false);
     });
   });
+
+  // [NAV] 设备页回调
+  main->on_nav_page_selected([this](int page) {
+    nav_page_ = page;
+    SyncUserAccountToUi();
+  });
+  main->on_nav_account_clicked([this]() {
+    if (ui_) ui_->Window(false).operator->()->set_user_account_open(true);
+  });
+  main->on_nav_signout([this]() {
+    ClearPersistedCredential();
+    if (user_account_) user_account_->SignOut();
+  });
+  main->on_nav_connect([this](slint::SharedString id) {
+    const std::string device(id.data(), id.size());
+    if (!user_account_ || !user_account_->CanAccess(device)) return;
+    slint::invoke_from_event_loop([this, device]() {
+      ConnectTo(device, nullptr, false, true, false);
+    });
+  });
+  main->on_nav_new_group([this]() {
+    slint::invoke_from_event_loop([this]() {
+      if (user_bridge_) user_bridge_->RequestCreateGroup("\u65b0\u5206\u7ec4", "");
+    });
+  });
+  main->on_nav_add_device([this]() {
+    slint::invoke_from_event_loop([this]() {
+      if (!user_bridge_ || !user_account_) return;
+      const auto groups = user_account_->Groups();
+      if (!groups.empty()) {
+        user_bridge_->RequestAddDevice(groups.front().id, "", "");
+      }
+    });
+  });
+  main->on_nav_alias_edit([this](slint::SharedString id, slint::SharedString name) {
+    const std::string device(id.data(), id.size());
+    const std::string alias(name.data(), name.size());
+    slint::invoke_from_event_loop([this, device, alias]() {
+      if (user_bridge_) user_bridge_->RequestSetAlias(device, alias);
+    });
+  });
+  main->on_nav_search([this](slint::SharedString text) {
+    SetDeviceSearch(std::string(text.data(), text.size()));
+    SyncUserAccountToUi();
+  });
+
 
   main->on_gallery_pointer([this](slint::PointerEventButton button,
                                  slint::PointerEventKind kind, float x,

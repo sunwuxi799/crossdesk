@@ -1,16 +1,18 @@
-// CrossDesk - employee account login gate and device list.
+// CrossDesk - user account login and device list (MINIMAL SAFE VERSION).
 //
-// Login gate: shown at startup when no remembered session exists.
-// Device list: mirrors the account's authorized devices on the main page.
+// This revision deliberately avoids layout patterns that can recurse during
+// Slint layout resolution:
+//   - no self-referential size bindings (parent.size -> child -> parent)
+//   - no max()/min() on lengths inside a positioned container
+//   - no nested custom components inside a sized popup
 //
-// All strings come from UserAccountStrings (injected from C++ with i18n).
+// Everything is expressed with fixed or parent-derived sizes that terminate.
 
 import { FlatSurface, UiSurface } from "ui_surface.slint";
 import { UiRadius } from "ui_radius.slint";
 import { WorkbenchStyle } from "workbench_controls.slint";
 import { SettingsButton } from "settings_controls.slint";
 import { RoundedLineEdit } from "rounded_line_edit.slint";
-import { ToggleSwitch } from "common.slint";
 
 // ---- Strings injected by C++ per language ----
 export global UserAccountStrings {
@@ -45,64 +47,68 @@ export struct UserGroupEntry {
     device-count: int,
 }
 
-// ---- One device row ----
-component UserDeviceRow inherits FlatSurface {
+// ---- One device row (fixed height, no stretchy inner layout) ----
+component UserDeviceRow inherits Rectangle {
     in property <UserDeviceEntry> device;
     callback connect-requested;
 
     height: 52px;
     background: white;
-    outline-color: UiSurface.edge;
     border-radius: UiRadius.control;
+    border-width: 1px;
+    border-color: UiSurface.edge;
 
-    HorizontalLayout {
-        padding-left: 12px;
-        padding-right: 12px;
-        spacing: 10px;
+    // Status dot
+    Rectangle {
+        x: 12px;
+        y: (parent.height - self.height) / 2;
+        width: 8px;
+        height: 8px;
+        border-radius: 4px;
+        background: root.device.online ? #1a7f37 : #94a3b8;
+    }
 
-        // Online status dot
-        Rectangle {
-            width: 8px;
-            height: 8px;
-            border-radius: 4px;
-            background: root.device.online ? #1a7f37 : #94a3b8;
-        }
+    // Alias
+    Text {
+        x: 30px;
+        y: 10px;
+        width: parent.width - 150px;
+        height: 18px;
+        text: root.device.alias != "" ? root.device.alias : root.device.device-id;
+        font-size: 12px;
+        font-weight: 600;
+        color: WorkbenchStyle.text;
+        overflow: elide;
+        vertical-alignment: center;
+    }
 
-        VerticalLayout {
-            spacing: 2px;
-            horizontal-stretch: 1;
-            min-width: 0px;
+    // Status line
+    Text {
+        x: 30px;
+        y: 28px;
+        width: parent.width - 150px;
+        height: 14px;
+        text: root.device.online ? UserAccountStrings.online : UserAccountStrings.offline;
+        font-size: 10px;
+        color: WorkbenchStyle.muted;
+        overflow: elide;
+        vertical-alignment: center;
+    }
 
-            Text {
-                text: root.device.alias != "" ? root.device.alias : root.device.device-id;
-                font-size: 12px;
-                font-weight: 600;
-                color: WorkbenchStyle.text;
-                overflow: elide;
-                vertical-alignment: center;
-            }
-            Text {
-                text: root.device.device-id + "  /  "
-                    + (root.device.online ? UserAccountStrings.online : UserAccountStrings.offline);
-                font-size: 10px;
-                color: WorkbenchStyle.muted;
-                overflow: elide;
-                vertical-alignment: center;
-            }
-        }
-
-        SettingsButton {
-            width: min(90px, max(64px, self.label-width));
-            height: 28px;
-            text-size: 11px;
-            text: UserAccountStrings.connect;
-            enabled: root.device.online;
-            clicked => { root.connect-requested(); }
-        }
+    // Connect button
+    SettingsButton {
+        x: parent.width - 104px;
+        y: (parent.height - self.height) / 2;
+        width: 92px;
+        height: 28px;
+        text-size: 11px;
+        text: UserAccountStrings.connect;
+        enabled: root.device.online;
+        clicked => { root.connect-requested(); }
     }
 }
 
-// ---- Login gate shown at startup ----
+// ---- Login gate shown at startup (fixed geometry only) ----
 export component UserLoginGate inherits Rectangle {
     in-out property <bool> signing-in: false;
     in-out property <string> error-text: "";
@@ -114,123 +120,168 @@ export component UserLoginGate inherits Rectangle {
 
     background: WorkbenchStyle.canvas;
 
-    // Centered card
-    card := FlatSurface {
-        width: min(400px, parent.width - 80px);
-        height: 400px;
-        x: (parent.width - self.width) / 2;
-        y: max(60px, (parent.height - self.height) / 2 - 40px);
+    // Fixed-size card centered by arithmetic on the parent only.
+    card := Rectangle {
+        width: 380px;
+        height: 380px;
+        x: (parent.width - 380px) / 2;
+        y: (parent.height - 380px) / 2;
         background: white;
-        outline-color: UiSurface.edge;
         border-radius: UiRadius.surface;
+        border-width: 1px;
+        border-color: UiSurface.edge;
 
-        content := VerticalLayout {
-            width: parent.width;
-            height: parent.height;
-            padding: 28px;
-            spacing: 16px;
+        // Title
+        Text {
+            x: 28px;
+            y: 28px;
+            width: 324px;
+            height: 28px;
+            text: UserAccountStrings.welcome-title;
+            font-size: 19px;
+            font-weight: 700;
+            color: WorkbenchStyle.text;
+            overflow: elide;
+            vertical-alignment: center;
+        }
 
-            // Header
-            VerticalLayout {
-                spacing: 6px;
+        // Hint
+        Text {
+            x: 28px;
+            y: 60px;
+            width: 324px;
+            height: 34px;
+            text: UserAccountStrings.welcome-hint;
+            font-size: 11px;
+            color: WorkbenchStyle.muted;
+            wrap: word-wrap;
+        }
+
+        // Username label
+        Text {
+            x: 28px;
+            y: 104px;
+            width: 324px;
+            height: 16px;
+            text: UserAccountStrings.username-label;
+            font-size: 11px;
+            color: WorkbenchStyle.muted;
+            vertical-alignment: center;
+        }
+
+        // Username input
+        RoundedLineEdit {
+            x: 28px;
+            y: 122px;
+            width: 324px;
+            height: 36px;
+            text <=> root.input-username;
+            enabled: !root.signing-in;
+            placeholder-text: UserAccountStrings.username-label;
+        }
+
+        // Password label
+        Text {
+            x: 28px;
+            y: 170px;
+            width: 324px;
+            height: 16px;
+            text: UserAccountStrings.password-label;
+            font-size: 11px;
+            color: WorkbenchStyle.muted;
+            vertical-alignment: center;
+        }
+
+        // Password input
+        RoundedLineEdit {
+            x: 28px;
+            y: 188px;
+            width: 324px;
+            height: 36px;
+            text <=> root.input-password;
+            input-type: password;
+            enabled: !root.signing-in;
+            placeholder-text: UserAccountStrings.password-label;
+            accepted => { root.sign-in-requested(); }
+        }
+
+        // Remember password (plain clickable row, no custom switch)
+        Rectangle {
+            x: 28px;
+            y: 236px;
+            width: 324px;
+            height: 24px;
+            background: transparent;
+
+            Rectangle {
+                x: 0px;
+                y: 2px;
+                width: 18px;
+                height: 18px;
+                border-radius: 4px;
+                border-width: 1px;
+                border-color: root.remember-password ? WorkbenchStyle.accent : UiSurface.edge;
+                background: root.remember-password ? WorkbenchStyle.accent : white;
+
                 Text {
-                    text: UserAccountStrings.welcome-title;
-                    font-size: 20px;
-                    font-weight: 700;
-                    color: WorkbenchStyle.text;
-                    horizontal-alignment: left;
-                }
-                Text {
-                    text: UserAccountStrings.welcome-hint;
+                    x: 0px; y: 0px;
+                    width: parent.width;
+                    height: parent.height;
+                    text: root.remember-password ? "x" : "";
                     font-size: 12px;
-                    color: WorkbenchStyle.muted;
-                    wrap: word-wrap;
-                    horizontal-alignment: left;
-                }
-            }
-
-            // Username
-            VerticalLayout {
-                spacing: 6px;
-                Text {
-                    text: UserAccountStrings.username-label;
-                    font-size: 12px;
-                    font-weight: 500;
-                    color: WorkbenchStyle.text;
-                    horizontal-alignment: left;
-                }
-                RoundedLineEdit {
-                    text <=> root.input-username;
-                    enabled: !root.signing-in;
-                    placeholder-text: UserAccountStrings.username-label;
-                    height: 36px;
-                }
-            }
-
-            // Password
-            VerticalLayout {
-                spacing: 6px;
-                Text {
-                    text: UserAccountStrings.password-label;
-                    font-size: 12px;
-                    font-weight: 500;
-                    color: WorkbenchStyle.text;
-                    horizontal-alignment: left;
-                }
-                RoundedLineEdit {
-                    text <=> root.input-password;
-                    input-type: password;
-                    enabled: !root.signing-in;
-                    placeholder-text: UserAccountStrings.password-label;
-                    height: 36px;
-                    accepted => { root.sign-in-requested(); }
-                }
-            }
-
-            // Remember password
-            HorizontalLayout {
-                spacing: 8px;
-                height: 28px;
-                ToggleSwitch {
-                    checked <=> root.remember-password;
-                    enabled: !root.signing-in;
-                    width: 36px;
-                    height: 20px;
-                }
-                Text {
-                    text: UserAccountStrings.remember-password;
-                    font-size: 12px;
-                    color: WorkbenchStyle.text;
+                    color: white;
+                    horizontal-alignment: center;
                     vertical-alignment: center;
                 }
             }
 
-            // Error
-            if root.error-text != "" : Text {
-                text: root.error-text;
+            Text {
+                x: 26px;
+                y: 0px;
+                width: 280px;
+                height: 24px;
+                text: UserAccountStrings.remember-password;
                 font-size: 12px;
-                color: UiSurface.error;
-                wrap: word-wrap;
-                horizontal-alignment: left;
+                color: WorkbenchStyle.text;
+                vertical-alignment: center;
             }
 
-            // Submit
-            SettingsButton {
-                width: card.width - 56px;
-                height: 38px;
-                primary: true;
-                text-size: 13px;
-                enabled: !root.signing-in
-                    && root.input-username != ""
-                    && root.input-password != "";
-                text: root.signing-in ? UserAccountStrings.signing-in : UserAccountStrings.sign-in;
-                clicked => { root.sign-in-requested(); }
+            TouchArea {
+                clicked => { root.remember-password = !root.remember-password; }
             }
+        }
+
+        // Error
+        Text {
+            x: 28px;
+            y: 264px;
+            width: 324px;
+            height: 24px;
+            text: root.error-text;
+            font-size: 11px;
+            color: UiSurface.error;
+            wrap: word-wrap;
+            visible: root.error-text != "";
+        }
+
+        // Submit
+        SettingsButton {
+            x: 28px;
+            y: 296px;
+            width: 324px;
+            height: 38px;
+            primary: true;
+            text-size: 13px;
+            enabled: !root.signing-in
+                && root.input-username != ""
+                && root.input-password != "";
+            text: root.signing-in ? UserAccountStrings.signing-in : UserAccountStrings.sign-in;
+            clicked => { root.sign-in-requested(); }
         }
     }
 }
 
-// ---- Account panel (opened from the menu) ----
+// ---- Account panel opened from the menu ----
 export component UserAccountPanel inherits Rectangle {
     in-out property <bool> signed-in: false;
     in-out property <bool> signing-in: false;
@@ -270,7 +321,7 @@ export component UserAccountPanel inherits Rectangle {
                 vertical-alignment: center;
             }
             if root.signed-in : SettingsButton {
-                width: min(96px, max(64px, self.label-width));
+                width: 96px;
                 height: 28px;
                 text-size: 11px;
                 quiet: true;
@@ -304,22 +355,6 @@ export component UserAccountPanel inherits Rectangle {
                 placeholder-text: UserAccountStrings.password-label;
                 accepted => { root.sign-in-requested(); }
             }
-            HorizontalLayout {
-                spacing: 8px;
-                height: 24px;
-                ToggleSwitch {
-                    checked <=> root.remember-password;
-                    enabled: !root.signing-in;
-                    width: 36px;
-                    height: 20px;
-                }
-                Text {
-                    text: UserAccountStrings.remember-password;
-                    font-size: 11px;
-                    color: WorkbenchStyle.text;
-                    vertical-alignment: center;
-                }
-            }
             if root.error-text != "" : Text {
                 text: root.error-text;
                 font-size: 11px;
@@ -327,7 +362,7 @@ export component UserAccountPanel inherits Rectangle {
                 wrap: word-wrap;
             }
             SettingsButton {
-                width: min(160px, max(96px, self.label-width));
+                width: 160px;
                 height: 30px;
                 primary: true;
                 text-size: 11px;
@@ -351,7 +386,7 @@ export component UserAccountPanel inherits Rectangle {
                 }
                 Rectangle { horizontal-stretch: 1; }
                 SettingsButton {
-                    width: min(80px, max(64px, self.label-width));
+                    width: 80px;
                     height: 26px;
                     text-size: 10px;
                     quiet: true;

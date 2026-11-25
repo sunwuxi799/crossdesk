@@ -259,4 +259,166 @@ void UserAccount::RememberUsername(const std::string& username) {
   username_ = username;
 }
 
+// ---- 自助操作：请求构造 ----
+
+nlohmann::json UserAccount::BuildCreateGroupRequest(
+    const std::string& name, const std::string& description) const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return nlohmann::json{{"type", "create_my_group"},
+                        {"token", token_},
+                        {"name", name},
+                        {"description", description}};
+}
+
+nlohmann::json UserAccount::BuildAddDeviceRequest(
+    int64_t group_id, const std::string& device_id,
+    const std::string& alias) const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return nlohmann::json{{"type", "add_my_device"},
+                        {"token", token_},
+                        {"group_id", group_id},
+                        {"device_id", device_id},
+                        {"alias", alias}};
+}
+
+nlohmann::json UserAccount::BuildSavePasswordRequest(
+    const std::string& device_id, const std::string& password,
+    bool remember) const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return nlohmann::json{{"type", "save_device_password"},
+                        {"token", token_},
+                        {"device_id", device_id},
+                        {"password", password},
+                        {"remember", remember}};
+}
+
+nlohmann::json UserAccount::BuildGetPasswordRequest(
+    const std::string& device_id) const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return nlohmann::json{{"type", "get_device_password"},
+                        {"token", token_},
+                        {"device_id", device_id}};
+}
+
+nlohmann::json UserAccount::BuildSetAliasRequest(
+    const std::string& device_id, const std::string& alias) const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return nlohmann::json{{"type", "set_device_alias"},
+                        {"token", token_},
+                        {"device_id", device_id},
+                        {"alias", alias}};
+}
+
+// ---- 自助操作：响应处理 ----
+
+bool UserAccount::ApplySelfServiceResult(const nlohmann::json& message) {
+  if (!message.is_object()) return false;
+  const std::string type = message.value("type", "");
+
+  SelfServiceOutcome outcome{};
+  int64_t touched_group = 0;
+  std::string touched_device;
+  bool refresh_groups = false;
+
+  if (type == "create_my_group_result") {
+    outcome.ok = message.value("status", "") == "success";
+    if (outcome.ok) {
+      outcome.group_id = message.value("group_id", static_cast<int64_t>(0));
+      refresh_groups = true;
+    }
+  } else if (type == "add_my_device_result") {
+    outcome.ok = message.value("status", "") == "success";
+    if (outcome.ok) {
+      outcome.device_id = message.value("device_id", "");
+      touched_group = message.value("group_id", static_cast<int64_t>(0));
+      refresh_groups = true;
+    }
+  } else if (type == "save_device_password_result") {
+    outcome.ok = message.value("status", "") == "success";
+    if (outcome.ok) {
+      outcome.device_id = message.value("device_id", "");
+      outcome.stored = message.value("stored", false);
+      touched_device = outcome.device_id;
+    }
+  } else if (type == "get_device_password_result") {
+    outcome.ok = message.value("status", "") == "success";
+    if (outcome.ok) {
+      outcome.device_id = message.value("device_id", "");
+      outcome.password = message.value("password", "");
+    }
+  } else if (type == "set_device_alias_result") {
+    outcome.ok = message.value("status", "") == "success";
+    if (outcome.ok) {
+      outcome.device_id = message.value("device_id", "");
+      outcome.alias = message.value("alias", "");
+      touched_device = outcome.device_id;
+    }
+  } else {
+    return false;  // 不是自助操作的结果
+  }
+
+  if (!outcome.ok) {
+    outcome.error_code = message.value("error_code", "UNKNOWN");
+    outcome.reason = message.value("reason", outcome.error_code);
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    last_outcome_ = outcome;
+
+    // 本地立即反映别名与密码状态，避免等下一轮刷新
+    if (!touched_device.empty()) {
+      for (auto& group : groups_) {
+        for (auto& device : group.devices) {
+          if (device.device_id != touched_device) continue;
+          if (type == "set_device_alias_result") {
+            device.alias = outcome.alias;
+          } else if (type == "save_device_password_result") {
+            device.has_saved_password = outcome.stored;
+          }
+        }
+      }
+    }
+  }
+
+  // 分组结构变化时请求一次刷新（调用方通过 hook 发送）
+  if (refresh_groups && self_service_refresh_hook_) {
+    self_service_refresh_hook_();
+  }
+  (void)touched_group;
+  return true;
+}
+
+SelfServiceOutcome UserAccount::LastOutcome() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return last_outcome_;
+}
+
+// ---- 设备查找 ----
+
+std::string UserAccount::DeviceDisplayName(const std::string& device_id) const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  for (const auto& group : groups_) {
+    for (const auto& device : group.devices) {
+      if (device.device_id != device_id) continue;
+      return device.alias.empty() ? device.device_id : device.alias;
+    }
+  }
+  return device_id;
+}
+
+bool UserAccount::FindDevice(const std::string& device_id,
+                             UserVisibleDevice* out) const {
+  if (out == nullptr) return false;
+  std::lock_guard<std::mutex> lock(mutex_);
+  for (const auto& group : groups_) {
+    for (const auto& device : group.devices) {
+      if (device.device_id != device_id) continue;
+      *out = device;
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // namespace crossdesk

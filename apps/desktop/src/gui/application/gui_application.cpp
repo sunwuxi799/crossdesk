@@ -1765,41 +1765,82 @@ void GuiApplication::ResetSettingsUi(bool gallery_window) {
 }
 
 // [USER-ACCOUNT] Mirror the account state machine into both Slint windows.
+// [USER-ACCOUNT] Mirror the account state into both Slint windows.
+//
+// Guarded by design: a failure here must never terminate the application.
+// Slint property writes can throw when the item tree is in flux (for example
+// during window construction), and an unhandled throw crosses the FFI boundary
+// as a fail-fast abort. Every write is therefore wrapped and rate limited.
 void GuiApplication::SyncUserAccountToUi() {
   const auto account = user_account();
   if (!account || !ui_) return;
 
-  std::vector<ui::UserDeviceEntry> items;
-  for (const auto& d : UserDevices()) {
-    ui::UserDeviceEntry entry{};
-    entry.device_id = slint::SharedString(d.device_id);
-    entry.alias = slint::SharedString(d.alias);
-    entry.online = d.online;
-    items.push_back(std::move(entry));
+  // Stop hammering a broken window; a later state change can reset this.
+  if (user_sync_failures_ >= kUserSyncMaxFailures) return;
+
+  try {
+    std::vector<ui::UserDeviceEntry> items;
+    for (const auto& d : UserDevices()) {
+      ui::UserDeviceEntry entry{};
+      entry.device_id = slint::SharedString(d.device_id);
+      entry.alias = slint::SharedString(d.alias);
+      entry.online = d.online;
+      items.push_back(std::move(entry));
+    }
+
+    auto model =
+        std::make_shared<slint::VectorModel<ui::UserDeviceEntry>>(items);
+    const bool signed_in = account->IsSignedIn();
+    const bool signing_in = account->State() == UserLoginState::SigningIn;
+    const std::string display = account->DisplayName().empty()
+                                    ? account->Username()
+                                    : account->DisplayName();
+    const std::string error = account->LastError();
+
+    // Gate stays visible until a session exists; hidden while a restore runs.
+    const bool gate_open = !signed_in && !signing_in && !restore_attempted_;
+    const bool remember = remember_password();
+    const std::string display_text(display);
+    const std::string error_text(error);
+    // ComponentHandle has no null comparison; rely on Window() returning a
+    // usable handle and guard each write individually instead.
+
+    for (int slot = 0; slot < 2; ++slot) {
+      try {
+        auto* window = ui_->Window(slot == 1).operator->();
+        if (!window) continue;
+        window->set_user_signed_in(signed_in);
+        window->set_user_signing_in(signing_in);
+        window->set_user_devices(model);
+        window->set_user_display_name(slint::SharedString(display_text));
+        window->set_user_error_text(slint::SharedString(error_text));
+        window->set_user_login_gate_open(gate_open);
+        window->set_user_remember_password(remember);
+      } catch (const std::exception& e) {
+        LOG_WARN("Account UI sync failed for window {}: {}",
+                 slot == 1 ? "wall" : "main", e.what());
+        ++user_sync_failures_;
+      } catch (...) {
+        LOG_WARN("Account UI sync failed for window {}: unknown error",
+                 slot == 1 ? "wall" : "main");
+        ++user_sync_failures_;
+      }
+    }
+
+    if (user_sync_failures_ == 0) {
+      // Healthy pass; keep the failure counter at zero.
+    } else if (user_sync_failures_ >= kUserSyncMaxFailures) {
+      LOG_ERROR(
+          "Account UI sync disabled after {} consecutive failures", 
+          user_sync_failures_);
+    }
+  } catch (const std::exception& e) {
+    ++user_sync_failures_;
+    LOG_WARN("Account UI sync aborted: {}", e.what());
+  } catch (...) {
+    ++user_sync_failures_;
+    LOG_WARN("Account UI sync aborted: unknown error");
   }
-
-  auto model = std::make_shared<slint::VectorModel<ui::UserDeviceEntry>>(items);
-  const bool signed_in = account->IsSignedIn();
-  const bool signing_in = account->State() == UserLoginState::SigningIn;
-  const std::string display =
-      account->DisplayName().empty() ? account->Username() : account->DisplayName();
-  const std::string error = account->LastError();
-
-  // Keep the gate visible until a session exists; hide it while a restore runs.
-  const bool gate_open = !signed_in && !signing_in && !restore_attempted_;
-  const bool remember = remember_password();
-  const auto apply = [&](auto* window) {
-    if (!window) return;
-    window->set_user_signed_in(signed_in);
-    window->set_user_signing_in(signing_in);
-    window->set_user_devices(model);
-    window->set_user_display_name(slint::SharedString(display));
-    window->set_user_error_text(slint::SharedString(error));
-    window->set_user_login_gate_open(gate_open);
-    window->set_user_remember_password(remember);
-  };
-  apply(ui_->Window(false).operator->());
-  apply(ui_->Window(true).operator->());
 }
 
 void GuiApplication::BindMainCallbacks(bool gallery_window) {

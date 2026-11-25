@@ -12,6 +12,7 @@ import { UiRadius } from "ui_radius.slint";
 // ---- 文案（C++ 按语言注入）----
 export global NavStrings {
     in-out property <string> app-name: "CrossDesk";
+    in-out property <string> home: "Home";
     in-out property <string> device-list: "Devices";
     in-out property <string> remote-control: "Remote";
     in-out property <string> file-center: "Files";
@@ -180,54 +181,64 @@ export component MainSidebar inherits Rectangle {
     }
 
     // ===== 导航项 =====
-    nav-devices := NavItem {
+    nav-home := NavItem {
         x: 12px;
         y: 136px;
         width: parent.width - 24px;
-        label: NavStrings.device-list;
-        glyph: "▤";
+        label: NavStrings.home;
+        glyph: "⌂";
         active: root.current-page == 0;
         activated => { root.page-selected(0); }
     }
 
-    nav-remote := NavItem {
+    nav-devices := NavItem {
         x: 12px;
         y: 180px;
         width: parent.width - 24px;
-        label: NavStrings.remote-control;
-        glyph: "▶";
+        label: NavStrings.device-list;
+        glyph: "▤";
         active: root.current-page == 1;
         activated => { root.page-selected(1); }
     }
 
-    nav-files := NavItem {
+    nav-remote := NavItem {
         x: 12px;
         y: 224px;
         width: parent.width - 24px;
-        label: NavStrings.file-center;
-        glyph: "▣";
+        label: NavStrings.remote-control;
+        glyph: "▶";
         active: root.current-page == 2;
         activated => { root.page-selected(2); }
     }
 
-    nav-wall := NavItem {
+    nav-files := NavItem {
         x: 12px;
         y: 268px;
         width: parent.width - 24px;
-        label: NavStrings.screen-wall;
-        glyph: "▦";
+        label: NavStrings.file-center;
+        glyph: "▣";
         active: root.current-page == 3;
         activated => { root.page-selected(3); }
     }
 
-    nav-settings := NavItem {
+    nav-wall := NavItem {
         x: 12px;
         y: 312px;
         width: parent.width - 24px;
-        label: NavStrings.settings;
-        glyph: "⚙";
+        label: NavStrings.screen-wall;
+        glyph: "▦";
         active: root.current-page == 4;
         activated => { root.page-selected(4); }
+    }
+
+    nav-settings := NavItem {
+        x: 12px;
+        y: 356px;
+        width: parent.width - 24px;
+        label: NavStrings.settings;
+        glyph: "⚙";
+        active: root.current-page == 5;
+        activated => { root.page-selected(5); }
     }
 
     // ===== 底部：退出登录 =====
